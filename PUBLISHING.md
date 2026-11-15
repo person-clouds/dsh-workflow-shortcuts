@@ -1,5 +1,6 @@
 # 发布到 DSH 插件市场
 
+> 状态：**npm `dsh-workflow-shortcuts@0.1.0` 已发布；GitHub Release `v0.1.0` 已发布；awesome-dsh-plugin PR #15389 已提交（等待仓库满 1 天的 CI 自动重跑）。**
 > 包名：`dsh-workflow-shortcuts`（`0.1.0`，首个公开版本）
 > 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 > 市场条目：`market/person-clouds__dsh-workflow-shortcuts.yml`
@@ -29,7 +30,7 @@ git push -u origin main
 
 GitHub 仓库添加 topic：`dsh-plugin`。
 
-## 三、发布 npm
+## 三、发布 npm（已完成）
 
 ```bash
 cd /home/zh/www/personalCloud/task/dsh-workflow-shortcuts
@@ -43,7 +44,7 @@ npm publish --registry=https://registry.npmjs.org --access public
 dsh plugin --profile web add dsh-workflow-shortcuts
 ```
 
-## 四、创建 GitHub Release
+## 四、创建 GitHub Release（已完成）
 
 - tag：`v0.1.0`
 - 上传 tarball 时把文件改名为无版本号的 `dsh-workflow-shortcuts.tgz`
@@ -56,7 +57,7 @@ npm_config_cache=/tmp/npm-cache npm pack --pack-destination release
 mv release/dsh-workflow-shortcuts-0.1.0.tgz release/dsh-workflow-shortcuts.tgz
 ```
 
-## 五、提交 DSH 插件市场
+## 五、提交 DSH 插件市场（已提交 PR #15389）
 
 市场收录要求：
 
