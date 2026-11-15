@@ -103,6 +103,8 @@ test('/G：解析相对路径并新建实施会话', async () => {
   assert.equal(calls.renames[0].title, '实施：PLAN-foo.md')
   assert.equal(calls.prompts[0].id, 's2')
   assert.match(calls.prompts[0].content[0].text, /\/repo\/task\/foo\/PLAN-foo\.md/)
+  assert.match(calls.prompts[0].content[0].text, /AGENTS\.md/)
+  assert.doesNotMatch(calls.prompts[0].content[0].text, /完整阅读|先阅读相关代码|执行要求/)
   assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
 })
 
@@ -115,7 +117,7 @@ test('/G：输入文字时新建任务会话', async () => {
   assert.equal(JSON.stringify(calls.creates), JSON.stringify([{ workspaceId: 'w1' }]))
   assert.equal(calls.renames[0].id, 's2')
   assert.equal(calls.renames[0].title, '任务：修复登录失败问题')
-  assert.match(calls.prompts[0].content[0].text, /任务说明/)
+  assert.match(calls.prompts[0].content[0].text, /任务：/)
   assert.match(calls.prompts[0].content[0].text, /修复登录失败问题/)
   assert.doesNotMatch(calls.prompts[0].content[0].text, /计划文档：/)
   assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
