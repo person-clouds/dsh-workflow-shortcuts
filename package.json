@@ -1,0 +1,52 @@
+{
+  "name": "dsh-workflow-shortcuts",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DSH Web 工作流快捷命令：/D 讨论并落成计划文档，/G 按计划新建实施会话。",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "LICENSE",
+    "scripts",
+    "tests"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "test": "node --test tests/client.test.mjs"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/person-clouds/dsh-workflow-shortcuts.git"
+  },
+  "homepage": "https://github.com/person-clouds/dsh-workflow-shortcuts#readme",
+  "bugs": {
+    "url": "https://github.com/person-clouds/dsh-workflow-shortcuts/issues"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "workflow",
+    "slash-command",
+    "plan",
+    "session"
+  ]
+}
