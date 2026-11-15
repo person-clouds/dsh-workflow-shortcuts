@@ -89,6 +89,8 @@ test('/D：claim 后发送讨论提示词', async () => {
   assert.equal(calls.prompts.length, 1)
   assert.equal(calls.prompts[0].id, 's1')
   assert.match(calls.prompts[0].content[0].text, /讨论阶段/)
+  assert.match(calls.prompts[0].content[0].text, /短而可执行/)
+  assert.match(calls.prompts[0].content[0].text, /不要写成多层方案/)
   assert.match(calls.prompts[0].content[0].text, /实现登录/)
 })
 
