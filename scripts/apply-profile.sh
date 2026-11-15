@@ -36,7 +36,7 @@ python3 - "$PATCH_FILE" <<'PY'
 import pathlib, sys
 p = pathlib.Path(sys.argv[1])
 text = p.read_text()
-block = """# dsh-workflow-shortcuts：/D 讨论、/G 按计划新建实施会话。
+block = """# dsh-workflow-shortcuts：/D 讨论、/G 按计划文档或输入文字新建会话处理。
 - insert:
     - id: dsh-workflow-shortcuts
       name: dsh-workflow-shortcuts

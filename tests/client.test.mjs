@@ -106,7 +106,35 @@ test('/G：解析相对路径并新建实施会话', async () => {
   assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
 })
 
-test('/G：缺少计划路径时返回错误', async () => {
+test('/G：输入文字时新建任务会话', async () => {
+  const { source, calls } = createHarness()
+  const outcome = source.matchEnter({ sessionId: 's1' }, '/G 修复登录失败问题', undefined, { attachments: 0 })
+  assert.equal(outcome.claim.token, '/G ')
+  const result = await outcome.claim.submit('修复登录失败问题', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(JSON.stringify(calls.creates), JSON.stringify([{ workspaceId: 'w1' }]))
+  assert.equal(calls.renames[0].id, 's2')
+  assert.equal(calls.renames[0].title, '任务：修复登录失败问题')
+  assert.match(calls.prompts[0].content[0].text, /任务说明/)
+  assert.match(calls.prompts[0].content[0].text, /修复登录失败问题/)
+  assert.doesNotMatch(calls.prompts[0].content[0].text, /计划文档：/)
+  assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
+})
+
+test('/G：计划路径 + 补充要求时新建实施会话', async () => {
+  const { source, calls } = createHarness()
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit(
+    'task/foo/PLAN-foo.md 只改 backend，并补充回归测试',
+    {},
+    []
+  )
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.renames[0].title, '实施：PLAN-foo.md')
+  assert.match(calls.prompts[0].content[0].text, /\/repo\/task\/foo\/PLAN-foo\.md/)
+  assert.match(calls.prompts[0].content[0].text, /只改 backend，并补充回归测试/)
+})
+
+test('/G：缺少计划路径或任务文字时返回错误', async () => {
   const { source, calls } = createHarness()
   const outcome = source.matchEnter({ sessionId: 's1' }, '/G', undefined, { attachments: 0 })
   const result = await outcome.claim.submit('', {}, [])

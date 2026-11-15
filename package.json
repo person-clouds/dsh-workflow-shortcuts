@@ -1,8 +1,8 @@
 {
   "name": "dsh-workflow-shortcuts",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "DSH Web 工作流快捷命令：/D 讨论并落成计划文档，/G 按计划新建实施会话。",
+  "description": "DSH Web 工作流快捷命令：/D 讨论并落成计划文档；/G 按计划文档或输入文字新建会话处理。",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js"

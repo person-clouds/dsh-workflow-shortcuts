@@ -1,4 +1,4 @@
-# dsh-workflow-shortcuts：/D 讨论、/G 按计划新建实施会话。
+# dsh-workflow-shortcuts：/D 讨论、/G 按计划文档或输入文字新建会话处理。
 - insert:
     - id: dsh-workflow-shortcuts
       name: dsh-workflow-shortcuts

@@ -1,6 +1,6 @@
 # 发布到 DSH 插件市场
 
-> 状态：**npm `dsh-workflow-shortcuts@0.1.0` 已发布；GitHub Release `v0.1.0` 已发布；awesome-dsh-plugin PR #15389 已提交（等待仓库满 1 天的 CI 自动重跑）。**
+> 状态：**本地开发版本 `0.2.0`（新增 `/G` 计划/文字双模式）；npm `dsh-workflow-shortcuts@0.1.0` 与 GitHub Release `v0.1.0` 已发布；awesome-dsh-plugin PR #15389 已提交（等待仓库满 1 天的 CI 自动重跑）。**
 > 包名：`dsh-workflow-shortcuts`（`0.1.0`，首个公开版本）
 > 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 > 市场条目：`market/person-clouds__dsh-workflow-shortcuts.yml`
@@ -14,7 +14,7 @@ node -e "new (require('vm').Script)(require('fs').readFileSync('client.js','utf8
 npm_config_cache=/tmp/npm-cache npm pack --dry-run
 ```
 
-预期：3 个单元测试全部通过，`client.js` 可被普通脚本解析，打包清单包含 Host/Client入口、安装脚本、中英文 README 与 LICENSE。
+预期：5 个单元测试全部通过，`client.js` 可被普通脚本解析，打包清单包含 Host/Client入口、安装脚本、中英文 README 与 LICENSE。
 
 ## 二、创建公开 GitHub 仓库
 
