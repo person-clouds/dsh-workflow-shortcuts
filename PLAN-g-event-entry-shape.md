@@ -1,3 +1,9 @@
+---
+audience: human
+status: current
+implementation_status: done
+---
+
 # PLAN：修复 `/G` 消息读取，并让 `/D` 输出工作区相对路径
 
 ## 目标
