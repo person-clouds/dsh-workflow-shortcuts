@@ -146,6 +146,10 @@ const lines = [
 
 if (request.kind === "plan") {
 lines.push("计划文档：", request.planPath);
+lines.push(
+"",
+"计划文档中的路径已经验证过；方案无需讨论，也无需逐项复核路径，直接按文档执行，完成后按 AGENTS.md 做必要验证与收尾。"
+);
 if (request.instruction) {
 lines.push("", "补充要求：", request.instruction);
 }
