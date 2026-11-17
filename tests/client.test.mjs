@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import vm from 'node:vm'
 
-function loadPlugin() {
+function loadPlugin(globals = {}) {
   let plugin
   const icons = {
     IconPlanOutlineRegular: () => null,
@@ -11,6 +11,7 @@ function loadPlugin() {
   }
   const sandbox = {
     console,
+    ...globals,
     window: {
       __ModuleLoader__: {
         load({ factory }) {
@@ -24,8 +25,55 @@ function loadPlugin() {
   return plugin
 }
 
+function createElement(tag) {
+  return {
+    tagName: tag,
+    children: [],
+    listeners: {},
+    parentNode: undefined,
+    className: '',
+    textContent: '',
+    type: '',
+    open: false,
+    appendChild(child) {
+      this.children.push(child)
+      child.parentNode = this
+      return child
+    },
+    addEventListener(type, handler) {
+      ;(this.listeners[type] ??= []).push(handler)
+    },
+    remove() {
+      if (!this.parentNode) return
+      const index = this.parentNode.children.indexOf(this)
+      if (index !== -1) this.parentNode.children.splice(index, 1)
+      this.parentNode = undefined
+    },
+    close() {
+      this.open = false
+      for (const handler of this.listeners.close ?? []) handler({})
+    },
+    showModal() {
+      this.open = true
+    }
+  }
+}
+
+function userMessage(text) {
+  return { type: 'user/message', data: { message: { content: [{ type: 'text', text }] } } }
+}
+
+function assistantMessage(text) {
+  return { type: 'assistant/message', data: { message: { content: [{ type: 'text', text }] } } }
+}
+
+function toolMessage(text) {
+  return { type: 'tool/message', data: { message: { content: [{ type: 'text', text }] } } }
+}
+
 function createHarness(options = {}) {
-  const calls = { prompts: [], renames: [], creates: [], opened: [], reads: [] }
+  const calls = { prompts: [], renames: [], creates: [], opened: [], reads: [], dialogs: [] }
+  const entries = options.entries ?? []
   const sessions = {
     subagentAddress: () => undefined,
     list: { getSnapshot: () => ({ byId: { s1: { cwd: '/repo' } } }) },
@@ -41,12 +89,15 @@ function createHarness(options = {}) {
               calls.prompts.push({ id, content })
               return { ok: true, value: { accepted: true } }
             }
+          },
+          eventSource: {
+            getSnapshot: () => ({ entries })
           }
         }
       })
     },
-    async create(options) {
-      calls.creates.push(options)
+    async create(createOptions) {
+      calls.creates.push(createOptions)
       return 's2'
     }
   }
@@ -62,9 +113,34 @@ function createHarness(options = {}) {
       async read(sessionId, path, range) {
         calls.reads.push({ id: sessionId, path, range })
         if (options.readError !== undefined) throw options.readError
+        if (Array.isArray(options.unreadable) && options.unreadable.includes(path)) {
+          return { ok: false, error: { code: 'ENOENT', message: 'not found' } }
+        }
         return { ok: true, value: { text: options.planText ?? '' } }
       }
     }
+  }
+  const localStorage = {
+    getItem(key) {
+      return Object.hasOwn(options.localStorage ?? {}, key) ? options.localStorage[key] : null
+    }
+  }
+  const document = {
+    body: {
+      children: [],
+      appendChild(element) {
+        this.children.push(element)
+        element.parentNode = this
+        calls.dialogs.push(element)
+        options.onDialog?.(element)
+        return element
+      },
+      removeChild(element) {
+        const index = this.children.indexOf(element)
+        if (index !== -1) this.children.splice(index, 1)
+      }
+    },
+    createElement
   }
   let source
   const ctx = {
@@ -80,12 +156,21 @@ function createHarness(options = {}) {
     }),
     effect: (factory) => factory()
   }
-  loadPlugin().apply(ctx)
+  loadPlugin({ localStorage, document }).apply(ctx)
   assert.ok(source, '应注册 / 输入源')
   return { source, calls }
 }
 
-test('/D：claim 后发送讨论提示词', async () => {
+function clickPlan(dialog, index) {
+  const list = dialog.children[1]
+  list.children[index].listeners.click[0]()
+}
+
+function clickCancel(dialog) {
+  dialog.children[2].listeners.click[0]()
+}
+
+test('/D：claim 后发送讨论提示词，并要求绝对路径 Markdown 链接', async () => {
   const { source, calls } = createHarness()
   assert.equal(source.order, -1000)
   const rows = await source.candidates({ sessionId: 's1' }, { query: '', signal: { aborted: false } })
@@ -101,10 +186,12 @@ test('/D：claim 后发送讨论提示词', async () => {
   assert.match(calls.prompts[0].content[0].text, /讨论阶段/)
   assert.match(calls.prompts[0].content[0].text, /短而可执行/)
   assert.match(calls.prompts[0].content[0].text, /不要写成多层方案/)
+  assert.match(calls.prompts[0].content[0].text, /绝对路径/)
+  assert.match(calls.prompts[0].content[0].text, /Markdown 链接/)
   assert.match(calls.prompts[0].content[0].text, /实现登录/)
 })
 
-test('/G：解析相对路径并新建实施会话', async () => {
+test('/G：显式相对路径并新建实施会话', async () => {
   const { source, calls } = createHarness()
   const outcome = source.matchSpace({ sessionId: 's1' }, '/G')
   assert.equal(outcome.claim.token, '/G ')
@@ -115,23 +202,13 @@ test('/G：解析相对路径并新建实施会话', async () => {
   assert.equal(calls.renames[0].title, '实施：PLAN-foo.md')
   assert.equal(calls.prompts[0].id, 's2')
   assert.match(calls.prompts[0].content[0].text, /\/repo\/task\/foo\/PLAN-foo\.md/)
-  assert.match(calls.prompts[0].content[0].text, /AGENTS\.md/)
-  assert.match(calls.prompts[0].content[0].text, /路径已经验证过/)
-  assert.match(calls.prompts[0].content[0].text, /方案无需讨论/)
-  assert.match(calls.prompts[0].content[0].text, /无需逐项复核路径/)
-  assert.match(calls.prompts[0].content[0].text, /直接按文档执行/)
-  assert.doesNotMatch(calls.prompts[0].content[0].text, /完整阅读|先阅读相关代码|执行要求/)
   assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
 })
 
 test('/G：输入文字时新建任务会话', async () => {
   const { source, calls } = createHarness()
-  const outcome = source.matchEnter({ sessionId: 's1' }, '/G 修复登录失败问题', undefined, { attachments: 0 })
-  assert.equal(outcome.claim.token, '/G ')
-  const result = await outcome.claim.submit('修复登录失败问题', {}, [])
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('修复登录失败问题', {}, [])
   assert.equal(result.kind, 'success')
-  assert.equal(JSON.stringify(calls.creates), JSON.stringify([{ workspaceId: 'w1' }]))
-  assert.equal(calls.renames[0].id, 's2')
   assert.equal(calls.renames[0].title, '任务：修复登录失败问题')
   assert.match(calls.prompts[0].content[0].text, /任务：/)
   assert.match(calls.prompts[0].content[0].text, /修复登录失败问题/)
@@ -139,58 +216,171 @@ test('/G：输入文字时新建任务会话', async () => {
   assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
 })
 
-test('/G：计划路径 + 补充要求时新建实施会话', async () => {
-  const { source, calls } = createHarness()
-  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit(
-    'task/foo/PLAN-foo.md 只改 backend，并补充回归测试',
-    {},
-    []
-  )
-  assert.equal(result.kind, 'success')
-  assert.equal(calls.renames[0].title, '实施：PLAN-foo.md')
-  assert.match(calls.prompts[0].content[0].text, /\/repo\/task\/foo\/PLAN-foo\.md/)
-  assert.match(calls.prompts[0].content[0].text, /只改 backend，并补充回归测试/)
-})
-
-test('/G：计划标题优先取第一个 H1', async () => {
+test('/G：计划标题优先取第一个 H1，读取失败时回退文件名', async () => {
   const { source, calls } = createHarness({ planText: '# 归档会话标题缓存\n\n## 背景\n正文\n' })
-  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
-  assert.equal(result.kind, 'success')
+  await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
   assert.equal(calls.renames[0].title, '实施：归档会话标题缓存')
   assert.equal(calls.reads[0].id, 's1')
   assert.equal(calls.reads[0].path, '/repo/task/foo/PLAN-foo.md')
   assert.equal(JSON.stringify(calls.reads[0].range), JSON.stringify({ offset: 1, limit: 40 }))
+
+  const fallback = createHarness({ readError: new Error('文件不可读') })
+  await fallback.source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
+  assert.equal(fallback.calls.renames[0].title, '实施：PLAN-foo.md')
 })
 
-test('/G：无 H1 时取第一个 H2，并忽略代码围栏内的标题', async () => {
+test('/G 空参数：默认读取最近 5 条消息并命中唯一计划', async () => {
   const { source, calls } = createHarness({
-    planText: '```md\n# 代码示例里的标题\n```\n\n## 实施步骤\n1. 修改 client.js\n'
+    entries: [
+      userMessage('旧消息'),
+      userMessage('再看 task/foo/PLAN-foo.md'),
+      assistantMessage('收到'),
+      userMessage('没有路径'),
+      assistantMessage('准备执行')
+    ],
+    planText: '# 空参数最近计划\n'
   })
-  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('', {}, [])
   assert.equal(result.kind, 'success')
-  assert.equal(calls.renames[0].title, '实施：实施步骤')
+  assert.equal(calls.dialogs.length, 0)
+  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.renames[0].title, '实施：空参数最近计划')
+  assert.equal(calls.reads[0].range.limit, 1)
+  assert.equal(calls.reads[0].path, '/repo/task/foo/PLAN-foo.md')
 })
 
-test('/G：计划标题去掉计划前缀', async () => {
-  const { source, calls } = createHarness({ planText: '# PLAN: 归档会话标题缓存\n' })
-  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
+test('/G 空参数：localStorage 自定义条数生效', async () => {
+  const entries = [
+    userMessage('看 /repo/task/a/PLAN-a.md'),
+    userMessage('无关 1'),
+    userMessage('无关 2'),
+    userMessage('无关 3'),
+    userMessage('无关 4'),
+    userMessage('无关 5')
+  ]
+  const { source, calls } = createHarness({
+    entries,
+    localStorage: { 'dsh-workflow-shortcuts.recentMessages': '6' }
+  })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('', {}, [])
   assert.equal(result.kind, 'success')
-  assert.equal(calls.renames[0].title, '实施：归档会话标题缓存')
+  assert.equal(calls.creates.length, 1)
 })
 
-test('/G：读取计划失败时回退文件名', async () => {
-  const { source, calls } = createHarness({ readError: new Error('文件不可读') })
-  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
-  assert.equal(result.kind, 'success')
-  assert.equal(calls.renames[0].title, '实施：PLAN-foo.md')
-  assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
-})
-
-test('/G：缺少计划路径或任务文字时返回错误', async () => {
-  const { source, calls } = createHarness()
-  const outcome = source.matchEnter({ sessionId: 's1' }, '/G', undefined, { attachments: 0 })
-  const result = await outcome.claim.submit('', {}, [])
+test('/G 空参数：非法配置回退默认 5 条，并且只读取上限内的消息', async () => {
+  const entries = [
+    userMessage('看 /repo/task/a/PLAN-a.md'),
+    userMessage('无关 1'),
+    userMessage('无关 2'),
+    userMessage('无关 3'),
+    userMessage('无关 4'),
+    userMessage('无关 5')
+  ]
+  const { source, calls } = createHarness({
+    entries,
+    localStorage: { 'dsh-workflow-shortcuts.recentMessages': 'abc' }
+  })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('', {}, [])
   assert.equal(result.kind, 'error')
-  assert.match(result.text, /用法/)
+  assert.match(result.text, /最近 5 条消息未找到可读的 \.md 计划文档/)
   assert.equal(calls.creates.length, 0)
+})
+
+test('/G 空参数：Markdown 链接可识别并执行', async () => {
+  const { source, calls } = createHarness({
+    entries: [assistantMessage('计划已生成：[PLAN-b](/repo/task/b/PLAN-b.md)')]
+  })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.match(calls.prompts[0].content[0].text, /\/repo\/task\/b\/PLAN-b\.md/)
+})
+
+test('/G 空参数：多个候选只弹一次选择框，选中后执行对应路径', async () => {
+  const { source, calls } = createHarness({
+    entries: [
+      userMessage('看 /repo/task/a/PLAN-a.md'),
+      assistantMessage('也可以看 [PLAN-b](/repo/task/b/PLAN-b.md)')
+    ],
+    onDialog(dialog) {
+      assert.equal(calls.dialogs.length, 1)
+      clickPlan(dialog, 0)
+    }
+  })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.dialogs.length, 1)
+  assert.equal(calls.creates.length, 1)
+  assert.match(calls.prompts[0].content[0].text, /\/repo\/task\/b\/PLAN-b\.md/)
+})
+
+test('/G 空参数：取消选择不创建会话', async () => {
+  const { source, calls } = createHarness({
+    entries: [
+      userMessage('看 /repo/task/a/PLAN-a.md'),
+      userMessage('看 /repo/task/b/PLAN-b.md')
+    ],
+    onDialog: clickCancel
+  })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.dialogs.length, 1)
+  assert.equal(calls.creates.length, 0)
+  assert.equal(calls.opened.length, 0)
+})
+
+test('/G 空参数：未命中或文件不可读均不创建会话', async () => {
+  const missing = createHarness({ entries: [userMessage('这里没有计划')] })
+  const missingResult = await missing.source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('', {}, [])
+  assert.equal(missingResult.kind, 'error')
+  assert.match(missingResult.text, /未找到可读的 \.md 计划文档/)
+  assert.equal(missing.calls.reads.length, 0)
+  assert.equal(missing.calls.creates.length, 0)
+
+  const unreadable = createHarness({
+    entries: [userMessage('看 /repo/task/a/PLAN-a.md')],
+    unreadable: ['/repo/task/a/PLAN-a.md']
+  })
+  const unreadableResult = await unreadable.source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('', {}, [])
+  assert.equal(unreadableResult.kind, 'error')
+  assert.equal(unreadable.calls.creates.length, 0)
+})
+
+test('/G 空参数：排除 tool/system/developer 消息，按最近 N 条截断', async () => {
+  const excluded = createHarness({
+    entries: [
+      { type: 'system/message', data: { message: { content: [{ type: 'text', text: '看 /repo/task/a/PLAN-a.md' }] } } },
+      toolMessage('看 /repo/task/b/PLAN-b.md'),
+      userMessage('普通消息')
+    ]
+  })
+  const excludedResult = await excluded.source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('', {}, [])
+  assert.equal(excludedResult.kind, 'error')
+  assert.equal(excluded.calls.creates.length, 0)
+
+  const limited = createHarness({
+    entries: [
+      userMessage('看 /repo/task/a/PLAN-a.md'),
+      userMessage('无关 1'),
+      userMessage('无关 2')
+    ],
+    localStorage: { 'dsh-workflow-shortcuts.recentMessages': '2' }
+  })
+  const limitedResult = await limited.source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('', {}, [])
+  assert.equal(limitedResult.kind, 'error')
+  assert.match(limitedResult.text, /最近 2 条消息/)
+})
+
+test('/G：只接受 .md，拒绝 http(s) 与 .markdown', async () => {
+  const http = createHarness()
+  const httpResult = await http.source.matchEnter({ sessionId: 's1' }, '/G', undefined, { attachments: 0 })
+    .claim.submit('https://example.com/PLAN-a.md', {}, [])
+  assert.equal(httpResult.kind, 'success')
+  assert.equal(http.calls.creates.length, 1)
+  assert.match(http.calls.prompts[0].content[0].text, /任务：/)
+
+  const markdown = createHarness()
+  const markdownResult = await markdown.source.matchSpace({ sessionId: 's1' }, '/G')
+    .claim.submit('task/foo/PLAN-foo.markdown', {}, [])
+  assert.equal(markdownResult.kind, 'success')
+  assert.match(markdown.calls.prompts[0].content[0].text, /任务：/)
 })

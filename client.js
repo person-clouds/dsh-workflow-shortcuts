@@ -33,6 +33,26 @@ icon: IconPlayOutlineRegular
 }
 };
 
+const RECENT_MESSAGES_KEY = "dsh-workflow-shortcuts.recentMessages";
+const DEFAULT_RECENT_MESSAGES = 5;
+const MIN_RECENT_MESSAGES = 1;
+const MAX_RECENT_MESSAGES = 50;
+
+/** 读取空 /G 搜索最近消息的条数；非法值回退默认 5。 */
+function recentMessageLimit() {
+try {
+const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(RECENT_MESSAGES_KEY);
+if (raw === null || String(raw).trim() === "") return DEFAULT_RECENT_MESSAGES;
+const value = Number(raw);
+if (!Number.isInteger(value) || value < MIN_RECENT_MESSAGES || value > MAX_RECENT_MESSAGES) {
+return DEFAULT_RECENT_MESSAGES;
+}
+return value;
+} catch {
+return DEFAULT_RECENT_MESSAGES;
+}
+}
+
 /** 统一斜杠路径，便于比较工作区目录。 */
 function normalizePath(path) {
 const source = String(path).replace(/\\/g, "/");
@@ -65,7 +85,7 @@ return index === -1 ? normalized : normalized.slice(index + 1);
 function discussionPrompt(task) {
 return [
 "进入讨论阶段：先不要改文件。围绕任务澄清目标、范围、约束、风险与验收标准，信息不足时直接问我。",
-"讨论收敛后，把方案写成 PLAN-*.md，并在回复末尾给出绝对路径。",
+"讨论收敛后，把方案写成 PLAN-*.md 计划文档；计划路径必须是绝对路径，并在回复末尾输出可点击的 Markdown 链接，例如 [PLAN-foo.md](/repo/task/foo/PLAN-foo.md)。",
 "计划要短而可执行：只写目标、范围、改动位置、实施步骤、验收和回滚；删除复盘、重复论证和不必要的流程章节，简单任务不要写成多层方案。",
 "",
 "任务：",
@@ -74,33 +94,58 @@ task.trim() || "（我还没想清楚，请先通过提问帮我澄清。）"
 }
 
 /**
- * 找出输入中可能作为计划文档的路径。
- * 只有包含目录的 .md/.markdown 路径，或 PLAN-*.md，才进入计划模式；
- * 这样可以避免把普通任务文字里的 README.md 之类误判成实施计划。
+ * 找出文本中的计划文档引用，支持 Markdown 链接、引号/反引号路径和裸路径。
+ * 只接受 .md，拒绝 http(s) 链接。
  */
+function findPlanReferences(text) {
+const source = String(text);
+const matches = [];
+const add = (match, token, startOffset, endOffset) => {
+const value = String(token).trim();
+if (!looksLikePlanPath(value)) return;
+matches.push({
+ token: value,
+ start: match.index + startOffset,
+ end: match.index + endOffset
+});
+};
+
+const link = /\[[^\]]*\]\(\s*<?([^)\s>]+?\.md)>?\s*\)/gi;
+for (let match = link.exec(source); match !== null; match = link.exec(source)) {
+const offset = match[0].indexOf(match[1]);
+add(match, match[1], offset, offset + match[1].length);
+}
+
+const quoted = /(?:^|\s)(["'`])([^"'`\s]+?\.md)\1(?=\s|$)/gi;
+for (let match = quoted.exec(source); match !== null; match = quoted.exec(source)) {
+const offset = match[0].indexOf(match[2]);
+add(match, match[2], offset, offset + match[2].length);
+}
+
+const bare = /(?:^|\s)((?:[A-Za-z]:[\\/])?[^\s"'`\[\]()]+?\.md)(?=\s|$)/gi;
+for (let match = bare.exec(source); match !== null; match = bare.exec(source)) {
+const offset = match[0].indexOf(match[1]);
+add(match, match[1], offset, offset + match[1].length);
+}
+
+matches.sort((left, right) => left.start - right.start || right.end - left.end);
+const result = [];
+let occupiedUntil = -1;
+for (const match of matches) {
+if (match.start < occupiedUntil) continue;
+result.push(match);
+occupiedUntil = match.end;
+}
+return result;
+}
+
 function findPlanReference(text) {
-const quoted = /(?:^|\s)(["'`])(.+?\.(?:md|markdown))\1(?=\s|$)/i.exec(text);
-if (quoted !== null) {
-const token = quoted[2].trim();
-if (looksLikePlanPath(token)) {
-const start = quoted.index + quoted[0].indexOf(token);
-return { token, start, end: start + token.length };
-}
-}
-const bare = /(?:^|\s)((?:[A-Za-z]:[\\/])?[^\s"'`]+\.(?:md|markdown))(?=\s|$)/i.exec(text);
-if (bare !== null) {
-const token = bare[1].trim();
-if (looksLikePlanPath(token)) {
-const start = bare.index + bare[0].indexOf(token);
-return { token, start, end: start + token.length };
-}
-}
-return undefined;
+return findPlanReferences(text)[0];
 }
 
 function looksLikePlanPath(token) {
-const value = String(token).replace(/^["'`]|["'`]$/g, "").trim();
-if (!/\.(?:md|markdown)$/i.test(value)) return false;
+const value = String(token).replace(/^[<"'`]+|[>"'`]+$/g, "").trim();
+if (!/\.md$/i.test(value)) return false;
 if (/^(?:https?:)?\/\//i.test(value)) return false;
 if (/[\\/]/.test(value)) return true;
 return /^plan[-_.]/i.test(basename(value));
@@ -196,6 +241,118 @@ const sessions = ctx.sessions;
 const workspaces = ctx.workspaces;
 const uiWorkspace = ctx.uiWorkspace;
 
+/** 从一条会话事件里提取用户/助手文本；其他事件类型返回 undefined。 */
+function messageTextFromEntry(entry) {
+const type = entry?.type ?? entry?.event?.type;
+if (type !== "user/message" && type !== "assistant/message") return undefined;
+const payload = entry?.data ?? entry?.event?.data ?? entry;
+const message = payload?.message ?? payload;
+const content = message?.content ?? message?.text ?? message;
+if (typeof content === "string") return content;
+if (!Array.isArray(content)) return undefined;
+const text = content
+.map((block) => {
+if (typeof block === "string") return block;
+if (block?.type === "text" && typeof block.text === "string") return block.text;
+return "";
+})
+.filter((part) => part !== "")
+.join("\n");
+return text;
+}
+
+/** 从当前会话读取最近 N 条用户/助手消息文本（新到旧），排除 system/developer/tool。 */
+async function recentMessageTexts(sessionId, limit) {
+return sessions.using(sessionId, { source: "workflowShortcuts" }, async (reference) => {
+const entries = reference.binding.eventSource?.getSnapshot?.()?.entries;
+if (!Array.isArray(entries)) return [];
+const texts = [];
+for (let index = entries.length - 1; index >= 0 && texts.length < limit; index -= 1) {
+const text = messageTextFromEntry(entries[index]);
+if (typeof text === "string" && text.trim() !== "") texts.push(text);
+}
+return texts;
+});
+}
+
+/** 严格校验计划文档可读；读取失败或非 ok 结果返回 false。 */
+async function readablePlanPath(sessionId, planPath) {
+try {
+const result = await ctx.remote.workspaceFiles.read(sessionId, planPath, { offset: 1, limit: 1 });
+return result?.ok === true;
+} catch {
+return false;
+}
+}
+
+/** 从最近消息中收集可读计划候选，按规范化绝对路径去重。 */
+async function collectRecentPlanCandidates(sessionId, cwd, limit) {
+const texts = await recentMessageTexts(sessionId, limit);
+const seen = new Set();
+const candidates = [];
+for (let index = 0; index < texts.length; index += 1) {
+for (const reference of findPlanReferences(texts[index])) {
+const planPath = resolvePath(cwd, reference.token);
+if (seen.has(planPath)) continue;
+seen.add(planPath);
+if (await readablePlanPath(sessionId, planPath)) {
+const title = await readPlanTitle(sessionId, planPath);
+candidates.push({ path: planPath, title, sourceIndex: index + 1 });
+}
+}
+}
+return candidates;
+}
+
+/** 弹出计划选择框；选中返回绝对路径，取消/关闭返回 undefined。 */
+function choosePlan(candidates) {
+return new Promise((resolve) => {
+if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body) {
+resolve(undefined);
+return;
+}
+const dialog = document.createElement("dialog");
+dialog.className = "dsh-workflow-shortcuts-plan-picker";
+const title = document.createElement("h2");
+title.textContent = "选择要执行的计划文档";
+dialog.appendChild(title);
+const list = document.createElement("div");
+let settled = false;
+const finish = (value) => {
+if (settled) return;
+settled = true;
+if (typeof dialog.close === "function") dialog.close();
+dialog.remove?.();
+resolve(value);
+};
+for (const candidate of candidates) {
+const button = document.createElement("button");
+button.type = "button";
+button.textContent = `${candidate.title ?? basename(candidate.path)}（第 ${candidate.sourceIndex} 条最近消息）\n${candidate.path}`;
+button.addEventListener("click", () => finish(candidate.path));
+list.appendChild(button);
+}
+dialog.appendChild(list);
+const cancel = document.createElement("button");
+cancel.type = "button";
+cancel.textContent = "取消";
+cancel.addEventListener("click", () => finish(undefined));
+dialog.appendChild(cancel);
+dialog.addEventListener("cancel", (event) => {
+event?.preventDefault?.();
+finish(undefined);
+});
+dialog.addEventListener("close", () => {
+if (!settled) {
+settled = true;
+resolve(undefined);
+}
+});
+document.body.appendChild(dialog);
+dialog.showModal?.();
+});
+}
+
 /** 读取计划文档开头并提取标题；读取失败或没有标题时返回 undefined。 */
 async function readPlanTitle(sessionId, planPath) {
 try {
@@ -266,9 +423,23 @@ if (!result.ok) throw remoteFailure("session.prompt", result);
 async function startExecution(sessionId, rawArgs) {
 const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
 if (!cwd) throw new Error("无法确定当前会话的工作目录，/G 已取消。");
-const request = parseExecutionRequest(cwd, rawArgs);
-if (request.kind === "empty") {
-throw new Error("用法：/G <计划文档路径 | 任务描述>。例如：/G task/foo/PLAN-foo.md 或 /G 修复登录失败问题");
+const text = String(rawArgs).trim();
+let request;
+if (text !== "") {
+request = parseExecutionRequest(cwd, text);
+} else {
+const limit = recentMessageLimit();
+const candidates = await collectRecentPlanCandidates(sessionId, cwd, limit);
+if (candidates.length === 0) {
+throw new Error(`最近 ${limit} 条消息未找到可读的 .md 计划文档。`);
+}
+if (candidates.length === 1) {
+request = { kind: "plan", planPath: candidates[0].path, instruction: "" };
+} else {
+const planPath = await choosePlan(candidates);
+if (planPath === undefined) return { kind: "success" };
+request = { kind: "plan", planPath, instruction: "" };
+}
 }
 
 const workspace = await ensureWorkspace(cwd);

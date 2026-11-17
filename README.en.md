@@ -5,7 +5,7 @@
 Slash commands for DSH Web that support a "discuss first, write a plan, then implement in a fresh session" workflow.
 
 - `/D [task]`: enter discussion mode in the current session without modifying files; after the requirements settle, write the agreed solution to a `PLAN-*.md` document.
-- `/G <plan path | task text>`: create a fresh session that works from a plan document or from free-form task text.
+- `/G [plan path | task text]`: create a fresh session that works from a plan document or from free-form task text; leave it empty to find a recent plan automatically.
 
 The goal is to separate requirement discussion from code implementation so the implementation session does not carry the whole discussion history, reducing long-context usage.
 
@@ -16,10 +16,13 @@ The goal is to separate requirement discussion from code implementation so the i
 | `/D [task]` | Enter discussion mode in the current session. No files are modified; after discussion converges, write the solution to `PLAN-*.md`. |
 | `/G <plan path>` | Create a new session in the current workspace titled `实施：<plan document title>` and start implementing from the plan. |
 | `/G <task text>` | Create a new session titled `任务：<task summary>` and start working from the supplied text. |
+| `/G` | With no argument, search the latest N user/assistant messages for a `.md` plan: run the only match directly, show a picker for multiple matches, and create no session on cancel or no match. |
 
-The plan path for `/G` may be absolute or relative to the current session working directory.
+The plan path for `/G` may be absolute or relative to the current session working directory. Bare paths, quoted/backticked paths, and Markdown links are supported. Only `.md` plan files are accepted; `http(s)` links are rejected.
 
-Plan mode is selected when the input contains a `.md`/`.markdown` path with a directory component, or a file name starting with `PLAN-`/`plan-`; any other non-empty input is treated as task text. Extra requirements may follow a plan path, e.g. `/G task/foo/PLAN-foo.md only touch the backend and add tests`.
+Plan mode is selected when the input contains a `.md` path with a directory component, or a file name starting with `PLAN-`/`plan-`; any other non-empty input is treated as task text. Extra requirements may follow a plan path, e.g. `/G task/foo/PLAN-foo.md only touch the backend and add tests`.
+
+For an empty `/G`, configure the search depth in browser `localStorage`: key `dsh-workflow-shortcuts.recentMessages`, default `5`, valid range `1–50`, invalid values fall back to `5`. Only `user/message` and `assistant/message` entries are scanned, newest first.
 
 In plan mode, the session title is read from the first 40 lines of the plan document: the first H1 wins, otherwise the first H2; headings inside code fences are ignored. Prefixes `计划：`, `计划:`, `PLAN：`, and `PLAN:` are removed. If the read fails, no heading exists, or the cleaned title is empty, the plan file name is used instead and session creation continues.
 
@@ -65,7 +68,7 @@ The script creates a local symlink, registers the `package.json` dependency, bac
 
 - Registers only a client-side `/` input source. It adds no public port and no host API.
 - `/D` only sends a discussion prompt; it does not modify files directly. Writing the plan document is performed by the agent following the prompt.
-- `/G` only parses the input and builds a prompt. In plan mode it reads the first 40 lines of the plan document solely to build the title, falls back to the file name when the read fails, and does not validate the plan content or path.
+- `/G` only parses the input and builds a prompt. In plan mode it reads the first 40 lines of the plan document solely to build the title and falls back to the file name when the read fails. An empty `/G` checks candidate readability via `remote.workspaceFiles.read` but does not validate plan content.
 - It does not read credentials, access network resources, or inject HTML.
 
 ## Limitations
