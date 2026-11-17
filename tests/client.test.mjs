@@ -181,6 +181,9 @@ test('/D：claim 后发送讨论提示词，并要求绝对路径 Markdown 链�
   assert.deepEqual(outcome.claim.token, '/D ')
   const result = await outcome.claim.submit('实现登录', {}, [])
   assert.equal(result.kind, 'success')
+  assert.equal(calls.renames.length, 1)
+  assert.equal(calls.renames[0].id, 's1')
+  assert.equal(calls.renames[0].title, 'D: 实现登录')
   assert.equal(calls.prompts.length, 1)
   assert.equal(calls.prompts[0].id, 's1')
   assert.match(calls.prompts[0].content[0].text, /讨论阶段/)
@@ -189,6 +192,14 @@ test('/D：claim 后发送讨论提示词，并要求绝对路径 Markdown 链�
   assert.match(calls.prompts[0].content[0].text, /绝对路径/)
   assert.match(calls.prompts[0].content[0].text, /Markdown 链接/)
   assert.match(calls.prompts[0].content[0].text, /实现登录/)
+})
+
+test('/D：空任务时使用 D: 新讨论 标题', async () => {
+  const { source, calls } = createHarness()
+  const result = await source.matchSpace({ sessionId: 's1' }, '/D').claim.submit('', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.renames[0].title, 'D: 新讨论')
+  assert.equal(calls.prompts.length, 1)
 })
 
 test('/G：显式相对路径并新建实施会话', async () => {

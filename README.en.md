@@ -4,7 +4,7 @@
 
 Slash commands for DSH Web that support a "discuss first, write a plan, then implement in a fresh session" workflow.
 
-- `/D [task]`: enter discussion mode in the current session without modifying files; after the requirements settle, write the agreed solution to a `PLAN-*.md` document.
+- `/D [task]`: enter discussion mode in the current session without modifying files; rename the session to `D: <task summary>`, then write the agreed solution to a `PLAN-*.md` document after the requirements settle.
 - `/G [plan path | task text]`: create a fresh session that works from a plan document or from free-form task text; leave it empty to find a recent plan automatically.
 
 The goal is to separate requirement discussion from code implementation so the implementation session does not carry the whole discussion history, reducing long-context usage.
@@ -13,7 +13,7 @@ The goal is to separate requirement discussion from code implementation so the i
 
 | Command | Description |
 | --- | --- |
-| `/D [task]` | Enter discussion mode in the current session. No files are modified; after discussion converges, write the solution to `PLAN-*.md`. |
+| `/D [task]` | Enter discussion mode in the current session, renaming it to `D: <task summary>`. No files are modified; after discussion converges, write the solution to `PLAN-*.md`. |
 | `/G <plan path>` | Create a new session in the current workspace titled `实施：<plan document title>` and start implementing from the plan. |
 | `/G <task text>` | Create a new session titled `任务：<task summary>` and start working from the supplied text. |
 | `/G` | With no argument, search the latest N user/assistant messages for a `.md` plan: run the only match directly, show a picker for multiple matches, and create no session on cancel or no match. |

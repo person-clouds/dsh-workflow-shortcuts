@@ -401,7 +401,7 @@ return { kind: "error", text: `/${key} 不支持附件，请先把内容写入�
 }
 try {
 if (key === "D") {
-await sendPrompt(session.sessionId, discussionPrompt(args));
+await sendPrompt(session.sessionId, discussionPrompt(args), discussionTitle(args));
 return { kind: "success" };
 }
 return await startExecution(session.sessionId, args);
@@ -410,8 +410,19 @@ return errorOutcome(error);
 }
 }
 
-async function sendPrompt(sessionId, text) {
+/** 讨论会话统一加 `D: ` 前缀，便于和 `/G` 实施/任务会话区分。 */
+function discussionTitle(task) {
+const text = String(task).trim();
+const summary = text === "" ? "新讨论" : summarizeTitle(text);
+return `D: ${summary}`;
+}
+
+async function sendPrompt(sessionId, text, title) {
 await sessions.using(sessionId, { source: "workflowShortcuts" }, async (reference) => {
+if (title !== undefined) {
+const renamed = await reference.binding.session.rename(title);
+if (!renamed.ok) throw remoteFailure("session.rename", renamed);
+}
 const result = await reference.binding.session.prompt(
 [{ type: "text", text }],
 "queue"
