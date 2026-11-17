@@ -24,8 +24,8 @@ function loadPlugin() {
   return plugin
 }
 
-function createHarness() {
-  const calls = { prompts: [], renames: [], creates: [], opened: [] }
+function createHarness(options = {}) {
+  const calls = { prompts: [], renames: [], creates: [], opened: [], reads: [] }
   const sessions = {
     subagentAddress: () => undefined,
     list: { getSnapshot: () => ({ byId: { s1: { cwd: '/repo' } } }) },
@@ -57,11 +57,21 @@ function createHarness() {
     }
   }
   const uiWorkspace = { openSession: (id) => calls.opened.push(id) }
+  const remote = {
+    workspaceFiles: {
+      async read(sessionId, path, range) {
+        calls.reads.push({ id: sessionId, path, range })
+        if (options.readError !== undefined) throw options.readError
+        return { ok: true, value: { text: options.planText ?? '' } }
+      }
+    }
+  }
   let source
   const ctx = {
     sessions,
     workspaces,
     uiWorkspace,
+    remote,
     get: () => ({
       registerSource(value) {
         source = value
@@ -140,6 +150,40 @@ test('/G：计划路径 + 补充要求时新建实施会话', async () => {
   assert.equal(calls.renames[0].title, '实施：PLAN-foo.md')
   assert.match(calls.prompts[0].content[0].text, /\/repo\/task\/foo\/PLAN-foo\.md/)
   assert.match(calls.prompts[0].content[0].text, /只改 backend，并补充回归测试/)
+})
+
+test('/G：计划标题优先取第一个 H1', async () => {
+  const { source, calls } = createHarness({ planText: '# 归档会话标题缓存\n\n## 背景\n正文\n' })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.renames[0].title, '实施：归档会话标题缓存')
+  assert.equal(calls.reads[0].id, 's1')
+  assert.equal(calls.reads[0].path, '/repo/task/foo/PLAN-foo.md')
+  assert.equal(JSON.stringify(calls.reads[0].range), JSON.stringify({ offset: 1, limit: 40 }))
+})
+
+test('/G：无 H1 时取第一个 H2，并忽略代码围栏内的标题', async () => {
+  const { source, calls } = createHarness({
+    planText: '```md\n# 代码示例里的标题\n```\n\n## 实施步骤\n1. 修改 client.js\n'
+  })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.renames[0].title, '实施：实施步骤')
+})
+
+test('/G：计划标题去掉计划前缀', async () => {
+  const { source, calls } = createHarness({ planText: '# PLAN: 归档会话标题缓存\n' })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.renames[0].title, '实施：归档会话标题缓存')
+})
+
+test('/G：读取计划失败时回退文件名', async () => {
+  const { source, calls } = createHarness({ readError: new Error('文件不可读') })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.renames[0].title, '实施：PLAN-foo.md')
+  assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
 })
 
 test('/G：缺少计划路径或任务文字时返回错误', async () => {

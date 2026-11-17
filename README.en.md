@@ -14,12 +14,14 @@ The goal is to separate requirement discussion from code implementation so the i
 | Command | Description |
 | --- | --- |
 | `/D [task]` | Enter discussion mode in the current session. No files are modified; after discussion converges, write the solution to `PLAN-*.md`. |
-| `/G <plan path>` | Create a new session in the current workspace titled `实施：<plan file name>` and start implementing from the plan. |
+| `/G <plan path>` | Create a new session in the current workspace titled `实施：<plan document title>` and start implementing from the plan. |
 | `/G <task text>` | Create a new session titled `任务：<task summary>` and start working from the supplied text. |
 
 The plan path for `/G` may be absolute or relative to the current session working directory.
 
 Plan mode is selected when the input contains a `.md`/`.markdown` path with a directory component, or a file name starting with `PLAN-`/`plan-`; any other non-empty input is treated as task text. Extra requirements may follow a plan path, e.g. `/G task/foo/PLAN-foo.md only touch the backend and add tests`.
+
+In plan mode, the session title is read from the first 40 lines of the plan document: the first H1 wins, otherwise the first H2; headings inside code fences are ignored. Prefixes `计划：`, `计划:`, `PLAN：`, and `PLAN:` are removed. If the read fails, no heading exists, or the cleaned title is empty, the plan file name is used instead and session creation continues.
 
 ## Installation
 
@@ -63,7 +65,7 @@ The script creates a local symlink, registers the `package.json` dependency, bac
 
 - Registers only a client-side `/` input source. It adds no public port and no host API.
 - `/D` only sends a discussion prompt; it does not modify files directly. Writing the plan document is performed by the agent following the prompt.
-- `/G` only parses the input and builds a prompt; it does not verify that the plan file exists. A missing path is reported by the implementation agent in the new session.
+- `/G` only parses the input and builds a prompt. In plan mode it reads the first 40 lines of the plan document solely to build the title, falls back to the file name when the read fails, and does not validate the plan content or path.
 - It does not read credentials, access network resources, or inject HTML.
 
 ## Limitations
@@ -71,7 +73,7 @@ The script creates a local symlink, registers the `package.json` dependency, bac
 - `/D` and `/G` work only in the DSH Web client. Terminal/API sessions still use normal prompts or host commands.
 - `/G` reuses the current session workspace and registers it automatically when needed.
 - Text mode uses only the text after `/G`; it does not carry over the current session discussion history.
-- The plugin depends on the DSH client services `inputTriggers`, `sessions`, `workspaces`, and `uiWorkspace`; DSH upgrades that change these interfaces require an adapter update.
+- The plugin depends on the DSH client services `inputTriggers`, `sessions`, `workspaces`, `uiWorkspace`, and `remote.workspaceFiles`; DSH upgrades that change these interfaces require an adapter update.
 
 ## Development and tests
 

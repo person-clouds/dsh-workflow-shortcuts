@@ -13,7 +13,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
  * submit 时直接调用 Client 的 Session 服务完成动作。
  */
 
-const inject = ["inputTriggers", "sessions", "workspaces", "uiWorkspace"];
+const inject = ["inputTriggers", "sessions", "workspaces", "uiWorkspace", "remote", "remote.workspaceFiles"];
 
 // 与内置 /plan、/goal 等命令使用同一套图标组件。
 const { IconPlanOutlineRegular, IconPlayOutlineRegular } = require("@deepseek-ai/dsh-client-ui-primitives");
@@ -132,9 +132,40 @@ if (cleaned === "") return "新任务";
 return cleaned.length > 36 ? `${cleaned.slice(0, 36)}…` : cleaned;
 }
 
-function executionTitle(request) {
-if (request.kind === "plan") return `实施：${basename(request.planPath)}`;
-return `任务：${summarizeTitle(request.text)}`;
+/** 去掉计划标题开头的「计划：」或「PLAN:」前缀。 */
+function stripPlanPrefix(title) {
+return String(title).trim().replace(/^(?:计划|PLAN)\s*[：:]\s*/i, "").trim();
+}
+
+/**
+ * 从计划文档开头提取标题：优先第一个 H1，没有则第一个 H2；忽略代码围栏内的标题。
+ * 标题清洗后为空时返回 undefined，由调用方回退文件名。
+ */
+function planTitleFromText(text) {
+let fenced = false;
+let fallback;
+for (const line of String(text).split(/\r?\n/)) {
+const trimmed = line.trim();
+if (/^(?:```|~~~)/.test(trimmed)) {
+fenced = !fenced;
+continue;
+}
+if (fenced) continue;
+const h1 = /^#\s+(.+?)\s*#*\s*$/.exec(trimmed);
+if (h1 !== null) {
+const title = stripPlanPrefix(h1[1]);
+if (title !== "") return title;
+continue;
+}
+if (fallback === undefined) {
+const h2 = /^##\s+(.+?)\s*#*\s*$/.exec(trimmed);
+if (h2 !== null) {
+const title = stripPlanPrefix(h2[1]);
+if (title !== "") fallback = title;
+}
+}
+}
+return fallback;
 }
 
 function executionPrompt(cwd, request) {
@@ -164,6 +195,26 @@ function apply(ctx) {
 const sessions = ctx.sessions;
 const workspaces = ctx.workspaces;
 const uiWorkspace = ctx.uiWorkspace;
+
+/** 读取计划文档开头并提取标题；读取失败或没有标题时返回 undefined。 */
+async function readPlanTitle(sessionId, planPath) {
+try {
+const result = await ctx.remote.workspaceFiles.read(sessionId, planPath, { offset: 1, limit: 40 });
+if (result?.ok !== true || typeof result.value?.text !== "string") return undefined;
+return planTitleFromText(result.value.text);
+} catch {
+return undefined;
+}
+}
+
+/** 计划模式优先用计划文档标题；文字模式保持任务摘要。 */
+async function executionTitle(sessionId, request) {
+if (request.kind === "plan") {
+const planTitle = await readPlanTitle(sessionId, request.planPath);
+return `实施：${planTitle ?? basename(request.planPath)}`;
+}
+return `任务：${summarizeTitle(request.text)}`;
+}
 
 function errorOutcome(error) {
 return {
@@ -222,7 +273,7 @@ throw new Error("用法：/G <计划文档路径 | 任务描述>。例如：/G t
 
 const workspace = await ensureWorkspace(cwd);
 const newSessionId = await sessions.create({ workspaceId: workspace.workspaceId });
-const title = executionTitle(request);
+const title = await executionTitle(sessionId, request);
 
 await sessions.using(newSessionId, { source: "workflowShortcuts" }, async (reference) => {
 const renamed = await reference.binding.session.rename(title);
