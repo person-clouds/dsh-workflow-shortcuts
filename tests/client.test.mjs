@@ -67,6 +67,10 @@ function assistantMessage(text) {
   return { type: 'assistant/message', data: { message: { content: [{ type: 'text', text }] } } }
 }
 
+function wrappedMessage(type, text) {
+  return { type: 'event', event: { type, data: { message: { content: [{ type: 'text', text }] } } } }
+}
+
 function toolMessage(text) {
   return { type: 'tool/message', data: { message: { content: [{ type: 'text', text }] } } }
 }
@@ -170,7 +174,7 @@ function clickCancel(dialog) {
   dialog.children[2].listeners.click[0]()
 }
 
-test('/D：claim 后发送讨论提示词，并要求绝对路径 Markdown 链接', async () => {
+test('/D：claim 后发送讨论提示词，并要求工作区相对路径 Markdown 链接', async () => {
   const { source, calls } = createHarness()
   assert.equal(source.order, -1000)
   const rows = await source.candidates({ sessionId: 's1' }, { query: '', signal: { aborted: false } })
@@ -189,8 +193,10 @@ test('/D：claim 后发送讨论提示词，并要求绝对路径 Markdown 链�
   assert.match(calls.prompts[0].content[0].text, /讨论阶段/)
   assert.match(calls.prompts[0].content[0].text, /短而可执行/)
   assert.match(calls.prompts[0].content[0].text, /不要写成多层方案/)
-  assert.match(calls.prompts[0].content[0].text, /绝对路径/)
+  assert.match(calls.prompts[0].content[0].text, /相对当前工作区/)
+  assert.match(calls.prompts[0].content[0].text, /personalCloud\/task\/foo\/PLAN-foo\.md/)
   assert.match(calls.prompts[0].content[0].text, /Markdown 链接/)
+  assert.doesNotMatch(calls.prompts[0].content[0].text, /绝对路径/)
   assert.match(calls.prompts[0].content[0].text, /实现登录/)
 })
 
@@ -394,4 +400,23 @@ test('/G：只接受 .md，拒绝 http(s) 与 .markdown', async () => {
     .claim.submit('task/foo/PLAN-foo.markdown', {}, [])
   assert.equal(markdownResult.kind, 'success')
   assert.match(markdown.calls.prompts[0].content[0].text, /任务：/)
+})
+
+test('/G 空参数：真实事件包装形态解析工作区相对路径', async () => {
+  const { source, calls } = createHarness({
+    entries: [
+      userMessage('旧消息'),
+      wrappedMessage('assistant/message', '计划已生成：[PLAN-doc-audience-all-repos.md](PLAN-doc-audience-all-repos.md)')
+    ],
+    planText: '# 文档受众统一\n'
+  })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.dialogs.length, 0)
+  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.reads[0].id, 's1')
+  assert.equal(calls.reads[0].path, '/repo/PLAN-doc-audience-all-repos.md')
+  assert.equal(calls.renames[0].title, '实施：文档受众统一')
+  assert.match(calls.prompts[0].content[0].text, /计划文档：\n\/repo\/PLAN-doc-audience-all-repos\.md/)
+  assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
 })

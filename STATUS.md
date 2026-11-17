@@ -11,8 +11,8 @@
 - [x] Client 侧 `/` 输入源：候选、空格、回车与命令 chip 恢复；
 - [x] `/D` 发送讨论提示词，要求不修改文件并落成 `PLAN-*.md`；
 - [x] `/D` 将会话名统一改为 `D: <任务摘要>`，空任务使用 `D: 新讨论`，便于识别讨论阶段；
-- [x] `/D` 提示词要求计划短而可执行，覆盖“短而可执行”“不要写成多层方案”，并要求末尾输出绝对路径 Markdown 链接；
-- [x] `/G` 空参数从最近 N 条用户/助手消息查找可读 `.md` 计划：单选直达、多选弹框、取消/未命中不建会话；
+- [x] `/D` 提示词要求计划短而可执行，覆盖“短而可执行”“不要写成多层方案”，并要求末尾输出相对当前工作区半路径的 Markdown 链接；
+- [x] `/G` 空参数从最近 N 条用户/助手消息查找可读 `.md` 计划：兼容真实事件快照包装形态与旧扁平形态，单选直达、多选弹框、取消/未命中不建会话；
 - [x] `/G` 最近消息条数支持 `localStorage` 配置 `dsh-workflow-shortcuts.recentMessages`（默认 5，范围 1–50）；
 - [x] `/G` 计划引用支持裸路径、引号/反引号、Markdown 链接，只接受 `.md` 并拒绝 `http(s)`；
 - [x] `/G` 支持计划模式：解析绝对/相对计划路径，自动登记工作区、创建并打开新会话；
@@ -24,7 +24,7 @@
 - [x] 中文 README 优先展示，补充英文 `README.en.md`；
 - [x] MIT LICENSE、PUBLISHING.md 与市场条目草稿；
 - [x] `scripts/apply-profile.sh` 支持从脚本位置推导插件目录，不再写死本机路径；
-- [x] 单元测试 14/14 通过，`client.js` 可通过普通脚本解析，`npm pack` 通过；
+- [x] 单元测试 15/15 通过，`client.js` 可通过普通脚本解析，`npm pack` 通过；
 - [x] npm `dsh-workflow-shortcuts@0.1.0` 已发布；
 - [x] GitHub Release `v0.1.0` 已发布，资产名 `dsh-workflow-shortcuts.tgz`；
 - [x] awesome-dsh-plugin PR #15389 已提交。
@@ -54,3 +54,4 @@
 | 2026-11-15 | npm Registry | `dsh-workflow-shortcuts@0.1.0` 可查询，`latest=0.1.0` |
 | 2026-11-15 | GitHub Release `v0.1.0` | `latest/download/dsh-workflow-shortcuts.tgz` 返回 200，10128 字节 |
 | 2026-11-15 | awesome-dsh-plugin PR | 已创建 #15389，等待仓库年龄门槛后的自动重跑 |
+| 2026-11-18 | `npm test`（真实事件包装形态） | 通过；覆盖 `/G` 从包装事件解析工作区相对路径与 `/D` 半路径 Markdown 链接 |

@@ -59,7 +59,7 @@ The script creates a local symlink, registers the `package.json` dependency, bac
 ## Usage
 
 1. Type `/D` in the current session, choose "discuss", enter a task description, and press Enter.
-2. The agent enters discussion mode. Once requirements converge, it writes a plan document and returns its absolute path.
+2. The agent enters discussion mode. Once requirements converge, it writes a plan document and returns a Markdown link using a path relative to the current workspace, for example `[PLAN-foo.md](personalCloud/task/foo/PLAN-foo.md)`.
 3. Type `/G <plan path>` or `/G <task text>`. The plugin creates a new session, renames it, and sends the matching execution prompt.
 
 `/G` uses the current session working directory as the new session workspace and registers that workspace automatically when needed. The execution prompt only asks the new session to read the workspace `AGENTS.md` first, look up documents and code as needed, and follow `AGENTS.md` for the rest. In plan mode, the prompt states that paths in the plan document have already been verified and asks the new session not to re-discuss the solution or re-verify each path, but to execute the document directly.

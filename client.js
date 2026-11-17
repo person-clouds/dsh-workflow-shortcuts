@@ -85,7 +85,7 @@ return index === -1 ? normalized : normalized.slice(index + 1);
 function discussionPrompt(task) {
 return [
 "进入讨论阶段：先不要改文件。围绕任务澄清目标、范围、约束、风险与验收标准，信息不足时直接问我。",
-"讨论收敛后，把方案写成 PLAN-*.md 计划文档；计划路径必须是绝对路径，并在回复末尾输出可点击的 Markdown 链接，例如 [PLAN-foo.md](/repo/task/foo/PLAN-foo.md)。",
+"讨论收敛后，把方案写成 PLAN-*.md 计划文档；计划路径使用相对当前工作区的半路径，并在回复末尾输出以该半路径为目标的 Markdown 链接，例如 [PLAN-foo.md](personalCloud/task/foo/PLAN-foo.md)。",
 "计划要短而可执行：只写目标、范围、改动位置、实施步骤、验收和回滚；删除复盘、重复论证和不必要的流程章节，简单任务不要写成多层方案。",
 "",
 "任务：",
@@ -243,9 +243,10 @@ const uiWorkspace = ctx.uiWorkspace;
 
 /** 从一条会话事件里提取用户/助手文本；其他事件类型返回 undefined。 */
 function messageTextFromEntry(entry) {
-const type = entry?.type ?? entry?.event?.type;
+const event = entry?.type === "event" ? entry.event : undefined;
+const type = event?.type ?? entry?.type;
 if (type !== "user/message" && type !== "assistant/message") return undefined;
-const payload = entry?.data ?? entry?.event?.data ?? entry;
+const payload = event?.data ?? entry?.data ?? entry;
 const message = payload?.message ?? payload;
 const content = message?.content ?? message?.text ?? message;
 if (typeof content === "string") return content;
