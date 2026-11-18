@@ -25,7 +25,7 @@ The goal is to separate requirement discussion from code implementation so the i
 
 The plan path for `/G` may be absolute or relative to the current session working directory. Bare paths, quoted/backticked paths, and Markdown links are supported. Only `.md` plan files are accepted; `http(s)` links are rejected.
 
-`/D` writes a concise, executable plan. Its first H1 is fixed to `# PLAN：<short title>` (full-width colon), and the final reply ends with a Markdown link whose display text is the path relative to the current directory while the URL is the absolute full path, e.g. `[personalCloud/task/foo/PLAN-foo.md](/home/zh/www/personalCloud/task/foo/PLAN-foo.md)`.
+`/D` sends three short points: discuss and clarify without changing files until asked; write `PLAN-*.md` with its first H1 fixed to `# PLAN：<short title>` (full-width colon) and end the reply with a Markdown link whose display text is relative and URL is the absolute full path; keep the plan short and executable, and make simple, well-localized changes directly while updating README, STATUS, and PROJECT_INDEX.
 
 Plan mode is selected when the input contains a `.md` path with a directory component, or a file name starting with `PLAN-`/`plan-`; any other non-empty input is treated as task text. Extra requirements may follow a plan path, e.g. `/G task/foo/PLAN-foo.md only touch the backend and add tests`.
 
@@ -66,10 +66,10 @@ The script creates a local symlink, registers the `package.json` dependency, bac
 ## Usage
 
 1. Type `/D` in the current session, choose "discuss", enter a task description, and press Enter.
-2. The agent enters discussion mode. Once requirements converge, it writes a plan document whose first H1 is `# PLAN：<short title>` and returns a Markdown link whose display text is the path relative to the current directory and whose URL is the absolute full path, for example `[personalCloud/task/foo/PLAN-foo.md](/home/zh/www/personalCloud/task/foo/PLAN-foo.md)`.
+2. The agent discusses and clarifies first. Once requirements converge, it writes a plan document whose first H1 is `# PLAN：<short title>` and returns a Markdown link whose display text is relative and whose URL is the absolute full path, for example `[personalCloud/task/foo/PLAN-foo.md](/home/zh/www/personalCloud/task/foo/PLAN-foo.md)`.
 3. Type `/G <plan path>` or `/G <task text>`. The plugin creates a new session, renames it, and sends the matching execution prompt.
 
-`/G` uses the current session working directory as the new session workspace and registers that workspace automatically when needed. The execution prompt only asks the new session to read the workspace `AGENTS.md` first, look up documents and code as needed, and follow `AGENTS.md` for the rest. In plan mode, the prompt states that paths in the plan document have already been verified and asks the new session not to re-discuss the solution or re-verify each path, but to execute the document directly.
+`/G` uses the current session working directory as the new session workspace and registers that workspace automatically when needed. The execution prompt has three short points: read the workspace `AGENTS.md` first; in plan mode execute the plan document directly, and in text mode work from `任务：`; then verify and wrap up under `AGENTS.md`.
 
 ## Security boundaries
 

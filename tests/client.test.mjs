@@ -190,18 +190,13 @@ test('/D：claim 后发送讨论提示词，并要求工作区相对路径 Markd
   assert.equal(calls.renames[0].title, 'D: 实现登录')
   assert.equal(calls.prompts.length, 1)
   assert.equal(calls.prompts[0].id, 's1')
-  assert.match(calls.prompts[0].content[0].text, /讨论阶段/)
-  assert.match(calls.prompts[0].content[0].text, /短而可执行/)
-  assert.match(calls.prompts[0].content[0].text, /不要写成多层方案/)
-  assert.match(calls.prompts[0].content[0].text, /简单且改动位置明确/)
-  assert.match(calls.prompts[0].content[0].text, /可以直接顺手完成/)
-  assert.match(calls.prompts[0].content[0].text, /同步 README、STATUS、PROJECT_INDEX/)
-  assert.match(calls.prompts[0].content[0].text, /首个 H1 固定为/)
-  assert.match(calls.prompts[0].content[0].text, /# PLAN：<简短标题>/)
-  assert.match(calls.prompts[0].content[0].text, /显示名用相对当前目录的半路径/)
-  assert.match(calls.prompts[0].content[0].text, /链接地址用绝对全路径/)
-  assert.match(calls.prompts[0].content[0].text, /\[personalCloud\/task\/foo\/PLAN-foo\.md\]\(\/home\/zh\/www\/personalCloud\/task\/foo\/PLAN-foo\.md\)/)
-  assert.match(calls.prompts[0].content[0].text, /实现登录/)
+  const prompt = calls.prompts[0].content[0].text
+  // 三条要点：讨论澄清、写计划并给链接、短计划与顺手同步。
+  assert.match(prompt, /^1\. 先讨论澄清：未明确要求前不改文件，不清楚就直接提问。$/m)
+  assert.match(prompt, /^2\. 讨论收敛后写 PLAN-\*\.md：.*# PLAN：<简短标题>.*地址用绝对全路径。$/m)
+  assert.match(prompt, /^3\. 计划短而可执行；简单且改动位置明确的点直接顺手完成，并同步 README、STATUS、PROJECT_INDEX。$/m)
+  assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
+  assert.match(prompt, /实现登录/)
 })
 
 test('/D：空任务时使用 D: 新讨论 标题', async () => {
@@ -251,7 +246,12 @@ test('/G：显式相对路径并新建实施会话', async () => {
   assert.equal(calls.renames[0].id, 's2')
   assert.equal(calls.renames[0].title, 'G：PLAN-foo.md')
   assert.equal(calls.prompts[0].id, 's2')
-  assert.match(calls.prompts[0].content[0].text, /\/repo\/task\/foo\/PLAN-foo\.md/)
+  const prompt = calls.prompts[0].content[0].text
+  assert.match(prompt, /^1\. 工作区：\/repo；先读工作区 AGENTS\.md/m)
+  assert.match(prompt, /计划文档：\n\/repo\/task\/foo\/PLAN-foo\.md/)
+  assert.match(prompt, /^2\. 直接按计划执行；路径已验证。$/m)
+  assert.match(prompt, /^3\. 完成后按 AGENTS\.md 验证收尾。$/m)
+  assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
   assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
 })
 

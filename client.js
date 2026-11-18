@@ -84,11 +84,9 @@ return index === -1 ? normalized : normalized.slice(index + 1);
 
 function discussionPrompt(task) {
 return [
-"进入讨论阶段：先不要改文件。围绕任务澄清目标、范围、约束、风险与验收标准，信息不足时直接问我。",
-"讨论收敛后，把方案写成 PLAN-*.md 计划文档；计划文档首个 H1 固定为 `# PLAN：<简短标题>`（全角冒号）。",
-"最终回复在末尾输出 Markdown 链接：显示名用相对当前目录的半路径，链接地址用绝对全路径，例如 [personalCloud/task/foo/PLAN-foo.md](/home/zh/www/personalCloud/task/foo/PLAN-foo.md)。",
-"计划要短而可执行：只写目标、范围、改动位置、实施步骤、验收和回滚；删除复盘、重复论证和不必要的流程章节，简单任务不要写成多层方案。",
-"讨论/调研中发现的功能点如果简单且改动位置明确，可以直接顺手完成，不必另开实施会话；完成后必须同步 README、STATUS、PROJECT_INDEX 等文档与状态。复杂或范围不明确的改动仍先出计划并等待确认。",
+"1. 先讨论澄清：未明确要求前不改文件，不清楚就直接提问。",
+"2. 讨论收敛后写 PLAN-*.md：首个 H1 固定为 `# PLAN：<简短标题>`（全角冒号）；最终回复末尾附 Markdown 链接，显示名用相对当前目录的路径，地址用绝对全路径。",
+"3. 计划短而可执行；简单且改动位置明确的点直接顺手完成，并同步 README、STATUS、PROJECT_INDEX。",
 "",
 "任务：",
 task.trim() || "（我还没想清楚，请先通过提问帮我澄清。）"
@@ -220,8 +218,7 @@ return fallback;
 
 function executionPrompt(cwd, request) {
 const lines = [
-`工作区：${cwd}`,
-"先读工作区 AGENTS.md，文档和代码按需查阅；按 AGENTS.md 完成实施、验证与收尾。",
+`1. 工作区：${cwd}；先读工作区 AGENTS.md，文档和代码按需查阅。`,
 ""
 ];
 
@@ -229,13 +226,15 @@ if (request.kind === "plan") {
 lines.push("计划文档：", request.planPath);
 lines.push(
 "",
-"计划文档中的路径已经验证过；方案无需讨论，也无需逐项复核路径，直接按文档执行，完成后按 AGENTS.md 做必要验证与收尾。"
+"2. 直接按计划执行；路径已验证。",
+"3. 完成后按 AGENTS.md 验证收尾。"
 );
 if (request.instruction) {
 lines.push("", "补充要求：", request.instruction);
 }
 } else {
-lines.push("任务：", request.text);
+lines.push("2. 按以下任务实施。", "任务：", request.text);
+lines.push("", "3. 完成后按 AGENTS.md 验证并收尾。");
 }
 
 return lines.join("\n");
