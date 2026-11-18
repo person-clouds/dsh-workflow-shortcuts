@@ -85,8 +85,10 @@ return index === -1 ? normalized : normalized.slice(index + 1);
 function discussionPrompt(task) {
 return [
 "进入讨论阶段：先不要改文件。围绕任务澄清目标、范围、约束、风险与验收标准，信息不足时直接问我。",
-"讨论收敛后，把方案写成 PLAN-*.md 计划文档；计划路径使用相对当前工作区的半路径，并在回复末尾输出以该半路径为目标的 Markdown 链接，例如 [PLAN-foo.md](personalCloud/task/foo/PLAN-foo.md)。",
+"讨论收敛后，把方案写成 PLAN-*.md 计划文档；计划文档首个 H1 固定为 `# PLAN：<简短标题>`（全角冒号）。",
+"最终回复在末尾输出 Markdown 链接：显示名用相对当前目录的半路径，链接地址用绝对全路径，例如 [personalCloud/task/foo/PLAN-foo.md](/home/zh/www/personalCloud/task/foo/PLAN-foo.md)。",
 "计划要短而可执行：只写目标、范围、改动位置、实施步骤、验收和回滚；删除复盘、重复论证和不必要的流程章节，简单任务不要写成多层方案。",
+"讨论/调研中发现的功能点如果简单且改动位置明确，可以直接顺手完成，不必另开实施会话；完成后必须同步 README、STATUS、PROJECT_INDEX 等文档与状态。复杂或范围不明确的改动仍先出计划并等待确认。",
 "",
 "任务：",
 task.trim() || "（我还没想清楚，请先通过提问帮我澄清。）"
@@ -177,9 +179,12 @@ if (cleaned === "") return "新任务";
 return cleaned.length > 36 ? `${cleaned.slice(0, 36)}…` : cleaned;
 }
 
-/** 去掉计划标题开头的「计划：」或「PLAN:」前缀。 */
+/** 去掉计划标题开头的「计划」或「PLAN」前缀及其后的分隔符。 */
 function stripPlanPrefix(title) {
-return String(title).trim().replace(/^(?:计划|PLAN)\s*[：:]\s*/i, "").trim();
+const value = String(title).trim();
+const matched = /^(?:计划|PLAN)([\s：:、·｜|—–\-_]+)(.*)$/i.exec(value);
+if (matched !== null) return matched[2].trim();
+return /^(?:计划|PLAN)$/i.test(value) ? "" : value;
 }
 
 /**

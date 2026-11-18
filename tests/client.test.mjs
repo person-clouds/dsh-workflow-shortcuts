@@ -193,10 +193,14 @@ test('/D：claim 后发送讨论提示词，并要求工作区相对路径 Markd
   assert.match(calls.prompts[0].content[0].text, /讨论阶段/)
   assert.match(calls.prompts[0].content[0].text, /短而可执行/)
   assert.match(calls.prompts[0].content[0].text, /不要写成多层方案/)
-  assert.match(calls.prompts[0].content[0].text, /相对当前工作区/)
-  assert.match(calls.prompts[0].content[0].text, /personalCloud\/task\/foo\/PLAN-foo\.md/)
-  assert.match(calls.prompts[0].content[0].text, /Markdown 链接/)
-  assert.doesNotMatch(calls.prompts[0].content[0].text, /绝对路径/)
+  assert.match(calls.prompts[0].content[0].text, /简单且改动位置明确/)
+  assert.match(calls.prompts[0].content[0].text, /可以直接顺手完成/)
+  assert.match(calls.prompts[0].content[0].text, /同步 README、STATUS、PROJECT_INDEX/)
+  assert.match(calls.prompts[0].content[0].text, /首个 H1 固定为/)
+  assert.match(calls.prompts[0].content[0].text, /# PLAN：<简短标题>/)
+  assert.match(calls.prompts[0].content[0].text, /显示名用相对当前目录的半路径/)
+  assert.match(calls.prompts[0].content[0].text, /链接地址用绝对全路径/)
+  assert.match(calls.prompts[0].content[0].text, /\[personalCloud\/task\/foo\/PLAN-foo\.md\]\(\/home\/zh\/www\/personalCloud\/task\/foo\/PLAN-foo\.md\)/)
   assert.match(calls.prompts[0].content[0].text, /实现登录/)
 })
 
@@ -206,6 +210,35 @@ test('/D：空任务时使用 D: 新讨论 标题', async () => {
   assert.equal(result.kind, 'success')
   assert.equal(calls.renames[0].title, 'D: 新讨论')
   assert.equal(calls.prompts.length, 1)
+})
+
+test('/G：计划标题清洗支持全角冒号、横线与连续分隔符', async () => {
+  const cases = [
+    ['PLAN：修复软链', '实施：修复软链'],
+    ['PLAN — 修复软链', '实施：修复软链'],
+    ['PLAN - 修复软链', '实施：修复软链'],
+    ['PLAN、修复软链', '实施：修复软链'],
+    ['PLAN·修复软链', '实施：修复软链'],
+    ['PLAN｜修复软链', '实施：修复软链'],
+    ['计划：修复软链', '实施：修复软链'],
+    ['pLaN: 修复软链', '实施：修复软链'],
+    ['PLAN：—、修复软链', '实施：修复软链']
+  ]
+  for (const [heading, expected] of cases) {
+    const { source, calls } = createHarness({ planText: `# ${heading}\n` })
+    await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
+    assert.equal(calls.renames[0].title, expected, heading)
+  }
+})
+
+test('/G：Planning 不剥离前缀，纯 PLAN 回退文件名', async () => {
+  const planning = createHarness({ planText: '# Planning 修复软链\n' })
+  await planning.source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
+  assert.equal(planning.calls.renames[0].title, '实施：Planning 修复软链')
+
+  const onlyPrefix = createHarness({ planText: '# PLAN\n' })
+  await onlyPrefix.source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
+  assert.equal(onlyPrefix.calls.renames[0].title, '实施：PLAN-foo.md')
 })
 
 test('/G：显式相对路径并新建实施会话', async () => {
