@@ -374,9 +374,9 @@ return undefined;
 async function executionTitle(sessionId, request) {
 if (request.kind === "plan") {
 const planTitle = await readPlanTitle(sessionId, request.planPath);
-return `实施：${planTitle ?? basename(request.planPath)}`;
+return `G：${planTitle ?? basename(request.planPath)}`;
 }
-return `任务：${summarizeTitle(request.text)}`;
+return `G：${summarizeTitle(request.text)}`;
 }
 
 function errorOutcome(error) {
@@ -416,7 +416,7 @@ return errorOutcome(error);
 }
 }
 
-/** 讨论会话统一加 `D: ` 前缀，便于和 `/G` 实施/任务会话区分。 */
+/** 讨论会话统一加 `D: ` 前缀，便于和 `/G` 的 G：会话区分。 */
 function discussionTitle(task) {
 const text = String(task).trim();
 const summary = text === "" ? "新讨论" : summarizeTitle(text);

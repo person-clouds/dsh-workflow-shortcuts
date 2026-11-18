@@ -214,15 +214,15 @@ test('/D：空任务时使用 D: 新讨论 标题', async () => {
 
 test('/G：计划标题清洗支持全角冒号、横线与连续分隔符', async () => {
   const cases = [
-    ['PLAN：修复软链', '实施：修复软链'],
-    ['PLAN — 修复软链', '实施：修复软链'],
-    ['PLAN - 修复软链', '实施：修复软链'],
-    ['PLAN、修复软链', '实施：修复软链'],
-    ['PLAN·修复软链', '实施：修复软链'],
-    ['PLAN｜修复软链', '实施：修复软链'],
-    ['计划：修复软链', '实施：修复软链'],
-    ['pLaN: 修复软链', '实施：修复软链'],
-    ['PLAN：—、修复软链', '实施：修复软链']
+    ['PLAN：修复软链', 'G：修复软链'],
+    ['PLAN — 修复软链', 'G：修复软链'],
+    ['PLAN - 修复软链', 'G：修复软链'],
+    ['PLAN、修复软链', 'G：修复软链'],
+    ['PLAN·修复软链', 'G：修复软链'],
+    ['PLAN｜修复软链', 'G：修复软链'],
+    ['计划：修复软链', 'G：修复软链'],
+    ['pLaN: 修复软链', 'G：修复软链'],
+    ['PLAN：—、修复软链', 'G：修复软链']
   ]
   for (const [heading, expected] of cases) {
     const { source, calls } = createHarness({ planText: `# ${heading}\n` })
@@ -234,11 +234,11 @@ test('/G：计划标题清洗支持全角冒号、横线与连续分隔符', asy
 test('/G：Planning 不剥离前缀，纯 PLAN 回退文件名', async () => {
   const planning = createHarness({ planText: '# Planning 修复软链\n' })
   await planning.source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
-  assert.equal(planning.calls.renames[0].title, '实施：Planning 修复软链')
+  assert.equal(planning.calls.renames[0].title, 'G：Planning 修复软链')
 
   const onlyPrefix = createHarness({ planText: '# PLAN\n' })
   await onlyPrefix.source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
-  assert.equal(onlyPrefix.calls.renames[0].title, '实施：PLAN-foo.md')
+  assert.equal(onlyPrefix.calls.renames[0].title, 'G：PLAN-foo.md')
 })
 
 test('/G：显式相对路径并新建实施会话', async () => {
@@ -249,7 +249,7 @@ test('/G：显式相对路径并新建实施会话', async () => {
   assert.equal(result.kind, 'success')
   assert.equal(JSON.stringify(calls.creates), JSON.stringify([{ workspaceId: 'w1' }]))
   assert.equal(calls.renames[0].id, 's2')
-  assert.equal(calls.renames[0].title, '实施：PLAN-foo.md')
+  assert.equal(calls.renames[0].title, 'G：PLAN-foo.md')
   assert.equal(calls.prompts[0].id, 's2')
   assert.match(calls.prompts[0].content[0].text, /\/repo\/task\/foo\/PLAN-foo\.md/)
   assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
@@ -259,7 +259,7 @@ test('/G：输入文字时新建任务会话', async () => {
   const { source, calls } = createHarness()
   const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('修复登录失败问题', {}, [])
   assert.equal(result.kind, 'success')
-  assert.equal(calls.renames[0].title, '任务：修复登录失败问题')
+  assert.equal(calls.renames[0].title, 'G：修复登录失败问题')
   assert.match(calls.prompts[0].content[0].text, /任务：/)
   assert.match(calls.prompts[0].content[0].text, /修复登录失败问题/)
   assert.doesNotMatch(calls.prompts[0].content[0].text, /计划文档：/)
@@ -269,14 +269,14 @@ test('/G：输入文字时新建任务会话', async () => {
 test('/G：计划标题优先取第一个 H1，读取失败时回退文件名', async () => {
   const { source, calls } = createHarness({ planText: '# 归档会话标题缓存\n\n## 背景\n正文\n' })
   await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
-  assert.equal(calls.renames[0].title, '实施：归档会话标题缓存')
+  assert.equal(calls.renames[0].title, 'G：归档会话标题缓存')
   assert.equal(calls.reads[0].id, 's1')
   assert.equal(calls.reads[0].path, '/repo/task/foo/PLAN-foo.md')
   assert.equal(JSON.stringify(calls.reads[0].range), JSON.stringify({ offset: 1, limit: 40 }))
 
   const fallback = createHarness({ readError: new Error('文件不可读') })
   await fallback.source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/foo/PLAN-foo.md', {}, [])
-  assert.equal(fallback.calls.renames[0].title, '实施：PLAN-foo.md')
+  assert.equal(fallback.calls.renames[0].title, 'G：PLAN-foo.md')
 })
 
 test('/G 空参数：默认读取最近 5 条消息并命中唯一计划', async () => {
@@ -294,7 +294,7 @@ test('/G 空参数：默认读取最近 5 条消息并命中唯一计划', async
   assert.equal(result.kind, 'success')
   assert.equal(calls.dialogs.length, 0)
   assert.equal(calls.creates.length, 1)
-  assert.equal(calls.renames[0].title, '实施：空参数最近计划')
+  assert.equal(calls.renames[0].title, 'G：空参数最近计划')
   assert.equal(calls.reads[0].range.limit, 1)
   assert.equal(calls.reads[0].path, '/repo/task/foo/PLAN-foo.md')
 })
@@ -449,7 +449,7 @@ test('/G 空参数：真实事件包装形态解析工作区相对路径', async
   assert.equal(calls.creates.length, 1)
   assert.equal(calls.reads[0].id, 's1')
   assert.equal(calls.reads[0].path, '/repo/PLAN-doc-audience-all-repos.md')
-  assert.equal(calls.renames[0].title, '实施：文档受众统一')
+  assert.equal(calls.renames[0].title, 'G：文档受众统一')
   assert.match(calls.prompts[0].content[0].text, /计划文档：\n\/repo\/PLAN-doc-audience-all-repos\.md/)
   assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
 })

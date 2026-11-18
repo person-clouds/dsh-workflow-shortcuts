@@ -19,8 +19,8 @@ The goal is to separate requirement discussion from code implementation so the i
 | Command | Description |
 | --- | --- |
 | `/D [task]` | Enter discussion mode in the current session, renaming it to `D: <task summary>`. No files are modified; after discussion converges, write the solution to `PLAN-*.md`. |
-| `/G <plan path>` | Create a new session in the current workspace titled `实施：<plan document title>` and start implementing from the plan. |
-| `/G <task text>` | Create a new session titled `任务：<task summary>` and start working from the supplied text. |
+| `/G <plan path>` | Create a new session in the current workspace titled `G：<plan document title>` and start implementing from the plan. |
+| `/G <task text>` | Create a new session titled `G：<task summary>` and start working from the supplied text. |
 | `/G` | With no argument, search the latest N user/assistant messages for a `.md` plan: run the only match directly, show a picker for multiple matches, and create no session on cancel or no match. |
 
 The plan path for `/G` may be absolute or relative to the current session working directory. Bare paths, quoted/backticked paths, and Markdown links are supported. Only `.md` plan files are accepted; `http(s)` links are rejected.
