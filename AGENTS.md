@@ -1,3 +1,8 @@
+---
+audience: ai
+status: current
+---
+
 # AGENTS.md
 
 > 本仓是独立的 DSH Web 插件仓库「dsh-workflow-shortcuts」。跨仓规则以 [`/home/zh/www/AGENTS.md`](../AGENTS.md) 为准；本文件只补充本仓规则。
