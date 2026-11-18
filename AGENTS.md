@@ -33,7 +33,7 @@ npm test
 
 ## 3. 文档与提交门禁
 
-- 本仓受检 Markdown 必须有 `audience`/`status` frontmatter（见 `docs-policy.json`）。
+- 本仓 Markdown 断链与 PLAN 元数据受工作区中央 `scripts/docs-policy.json` 约束。
 - 提交前在 `/home/zh/www` 执行 `./scripts/check.sh --repo dsh-workflow-shortcuts`，失败不得提交。
 - 改动同步 `README.md`、`README.en.md`、`STATUS.md`。
 
