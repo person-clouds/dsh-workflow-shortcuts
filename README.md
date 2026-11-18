@@ -1,3 +1,8 @@
+---
+audience: shared
+status: current
+---
+
 # dsh-workflow-shortcuts
 
 [中文](README.md) | [English](README.en.md)
@@ -53,7 +58,7 @@ dsh plugin --profile web add link:/path/to/dsh-workflow-shortcuts
 如果当前 AI 沙箱对 `~/.dsh` 只读，请在宿主机执行安装脚本：
 
 ```bash
-bash task/dsh-workflow-shortcuts/scripts/apply-profile.sh web
+bash dsh-workflow-shortcuts/scripts/apply-profile.sh web
 ```
 
 脚本会：建立本地软链并登记 `package.json` 依赖、备份并插入 `cordis.patch.yml`、重启 `dsh-web.service`（若存在）。

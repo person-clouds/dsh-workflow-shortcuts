@@ -1,3 +1,8 @@
+---
+audience: shared
+status: current
+---
+
 # dsh-workflow-shortcuts
 
 [中文](README.md) | [English](README.en.md)
@@ -53,7 +58,7 @@ Restart `dsh-web.service` and refresh the page. This plugin contains client-side
 If the current AI sandbox has read-only access to `~/.dsh`, run the installer on the host:
 
 ```bash
-bash task/dsh-workflow-shortcuts/scripts/apply-profile.sh web
+bash dsh-workflow-shortcuts/scripts/apply-profile.sh web
 ```
 
 The script creates a local symlink, registers the `package.json` dependency, backs up and updates `cordis.patch.yml`, and restarts `dsh-web.service` when present.

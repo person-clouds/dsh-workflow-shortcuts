@@ -3,7 +3,7 @@
 - 状态：已完成（2026-11-17）
 - 日期：2026-11-17
 - 决策：计划文件有 H1 用 H1，否则用第一个 H2，否则回退文件名；去掉 `计划：` / `PLAN：` / `PLAN:` 前缀
-- 范围：仅 `task/dsh-workflow-shortcuts/`，不改 `/D`、不改任务文字模式、不改 Host API
+- 范围：仅 `dsh-workflow-shortcuts/`，不改 `/D`、不改任务文字模式、不改 Host API
 
 ## 目标
 
@@ -36,7 +36,7 @@
 ## 验收
 
 ```bash
-cd task/dsh-workflow-shortcuts
+cd dsh-workflow-shortcuts
 npm test
 node -e "new (require('vm').Script)(require('fs').readFileSync('client.js','utf8'))"
 npm pack --dry-run
@@ -44,7 +44,7 @@ npm pack --dry-run
 
 - 全部用例通过；H1 计划标题生成 `实施：归档会话标题缓存`。
 - 无 H1 时取第一个 H2；无标题或读取失败时仍生成 `实施：<文件名>`，不中断建会话。
-- 浏览器 `/G task/dsh-workflow-shortcuts/PLAN-g-session-title-from-plan.md` 验证新会话标题。
+- 浏览器 `/G dsh-workflow-shortcuts/PLAN-g-session-title-from-plan.md` 验证新会话标题。
 
 ## 回滚
 

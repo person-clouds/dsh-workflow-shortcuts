@@ -34,7 +34,7 @@
 
 | # | 事项 | 说明 |
 |---|---|---|
-| 1 | 宿主机安装验收 | 执行 `bash task/dsh-workflow-shortcuts/scripts/apply-profile.sh web`，浏览器验证 `/D` 与 `/G` 的真实交互 |
+| 1 | 宿主机安装验收 | 执行 `bash dsh-workflow-shortcuts/scripts/apply-profile.sh web`，浏览器验证 `/D` 与 `/G` 的真实交互 |
 | 2 | 市场 PR 合并 | 仓库创建满 1 天后由 awesome-dsh-plugin CI 重跑并通过审核 |
 | 3 | npm 占位版本清理 | `0.0.0-stage` 是 npm 首次发布时的临时占位，不影响 `latest`；后续按 npm 支持情况清理 |
 

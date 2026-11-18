@@ -8,7 +8,7 @@
 ## 一、发布前验证
 
 ```bash
-cd /home/zh/www/personalCloud/task/dsh-workflow-shortcuts
+cd /home/zh/www/dsh-workflow-shortcuts
 npm test
 node -e "new (require('vm').Script)(require('fs').readFileSync('client.js','utf8'))"
 npm_config_cache=/tmp/npm-cache npm pack --dry-run
@@ -19,7 +19,7 @@ npm_config_cache=/tmp/npm-cache npm pack --dry-run
 ## 二、创建公开 GitHub 仓库
 
 ```bash
-cd /home/zh/www/personalCloud/task/dsh-workflow-shortcuts
+cd /home/zh/www/dsh-workflow-shortcuts
 git init
 git add .
 git commit -m "feat: DSH 工作流快捷命令 /D 与 /G"
@@ -33,7 +33,7 @@ GitHub 仓库添加 topic：`dsh-plugin`。
 ## 三、发布 npm（已完成）
 
 ```bash
-cd /home/zh/www/personalCloud/task/dsh-workflow-shortcuts
+cd /home/zh/www/dsh-workflow-shortcuts
 npm login --registry=https://registry.npmjs.org
 npm publish --registry=https://registry.npmjs.org --access public
 ```

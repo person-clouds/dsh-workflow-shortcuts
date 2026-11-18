@@ -13,7 +13,7 @@ implementation_status: done
 
 ## 范围
 
-只改 `personalCloud/task/dsh-workflow-shortcuts`：
+只改 `dsh-workflow-shortcuts`：
 
 - `client.js`
 - `tests/client.test.mjs`
