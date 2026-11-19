@@ -37,6 +37,26 @@ const RECENT_MESSAGES_KEY = "dsh-workflow-shortcuts.recentMessages";
 const DEFAULT_RECENT_MESSAGES = 5;
 const MIN_RECENT_MESSAGES = 1;
 const MAX_RECENT_MESSAGES = 50;
+const CONFIG_GLOBAL = "__DSH_WORKFLOW_SHORTCUTS_CONFIG__";
+
+/** 只保留非空字符串，并去掉首尾空白；缺失或非法值按未配置处理。 */
+function configDocPath(value) {
+return typeof value === "string" ? value.trim() : "";
+}
+
+/** 每次 /D 提交时读取当前注入配置，允许页面配置更新后无需重载代码。 */
+function workflowConfig() {
+try {
+const raw = typeof window === "undefined" ? undefined : window[CONFIG_GLOBAL];
+return {
+workflowDoc: configDocPath(raw?.workflowDoc),
+planDoc: configDocPath(raw?.planDoc),
+planTemplate: configDocPath(raw?.planTemplate)
+};
+} catch {
+return { workflowDoc: "", planDoc: "", planTemplate: "" };
+}
+}
 
 /** 读取空 /G 搜索最近消息的条数；非法值回退默认 5。 */
 function recentMessageLimit() {
@@ -83,9 +103,17 @@ return index === -1 ? normalized : normalized.slice(index + 1);
 }
 
 function discussionPrompt(task) {
+const config = workflowConfig();
+const specs = [];
+if (config.workflowDoc !== "") specs.push(`- 工作流规范：${config.workflowDoc}`);
+if (config.planDoc !== "") specs.push(`- 计划规范：${config.planDoc}`);
+if (config.planTemplate !== "") specs.push(`- 计划模板：${config.planTemplate}`);
+const planLine = specs.length === 0
+? "2. 确认后按当前工作区/仓库既有规范写 PLAN-*.md。"
+: `2. 确认后写 PLAN-*.md，遵循以下规范：\n${specs.join("\n")}`;
 return [
 "1. 先读工作区根 AGENTS.md、PROJECT_INDEX 与目标仓 AGENTS/SPEC，确认写权限；仅调查不改文件，需求不清就提问，方案确认后再动手。",
-"2. 确认后写 PLAN-*.md（单仓在目标仓，跨仓在工作区 doc/plans/）：frontmatter 仅 implementation_status、created_at、updated_at；H1 为 `# PLAN：<简短标题>`；含 `## 改动记录`；末尾附 Markdown 链接（显示名相对工作区根，地址绝对全路径）。",
+planLine,
 "3. 计划简短可执行；已定位的小改动直接做并说明；收尾按仓库 AGENTS 验证，行为变化同步 README/STATUS/PROJECT_INDEX（存在时）。",
 "",
 "任务：",

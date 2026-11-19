@@ -30,7 +30,7 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "test": "node --test tests/client.test.mjs"
+    "test": "node --test tests/client.test.mjs tests/index.test.mjs"
   },
   "license": "MIT",
   "repository": {
@@ -48,5 +48,8 @@
     "slash-command",
     "plan",
     "session"
-  ]
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "*"
+  }
 }

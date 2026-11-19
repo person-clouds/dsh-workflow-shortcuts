@@ -1,12 +1,22 @@
 # STATUS — dsh-workflow-shortcuts
 
-- 更新时间：2026-11-19（/D 提示词进一步精简）
+- 更新时间：2026-11-19（/D 规范文档路径改为 Host 配置）
 - 版本：`0.2.0`（本地开发中，尚未发布）
 - 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
 
-## 2026-11-19 最新：/D 提示词进一步精简
+## 2026-11-19 最新：/D 规范文档改为 Host 配置
+
+- [x] Host `index.js` 新增 `Config`：`workflowDoc`、`planDoc`、`planTemplate`，默认均为空字符串；
+- [x] Host 监听 `webserver/index-inject`，向页面注入 `__DSH_WORKFLOW_SHORTCUTS_CONFIG__`，值只含清洗后的三个字段；
+- [x] Client 每次 `/D` 提交时读取当前全局配置；空值/空白/非字符串视为未配置；
+- [x] `/D` 第 2 条只引用已配置规范；三项均未配置时改为「按当前工作区/仓库既有规范写 PLAN-*.md。」；
+- [x] 移除 `/D` 代码中硬编码的计划落点、frontmatter、H1 与 `## 改动记录` 约束；`/G` 提示词与行为不变；
+- [x] 新增 Host 测试，覆盖默认值、字段清洗与全局注入；Client 测试覆盖空/单项/三项/空白/非字符串与热更新；
+- [x] `npm test` 23/23 通过，`scripts/check.sh --repo dsh-workflow-shortcuts` 通过。
+
+## 2026-11-19：/D 提示词进一步精简
 
 - [x] 3 条要点压缩为短句，仍保留授权与只读、计划落点、frontmatter、H1、`## 改动记录`、Markdown 链接、顺手完成与收尾同步；
 - [x] 测试断言同步更新，仍检查 3 条编号要点。
@@ -47,7 +57,8 @@
 - [x] 中文 README 优先展示，补充英文 `README.en.md`；
 - [x] MIT LICENSE、PUBLISHING.md 与市场条目草稿；
 - [x] `scripts/apply-profile.sh` 支持从脚本位置推导插件目录，不再写死本机路径；
-- [x] 单元测试 17/17 通过，`client.js` 可通过普通脚本解析，`npm pack` 通过；
+- [x] 单元测试 23/23 通过，`client.js` 可通过普通脚本解析，`npm pack` 通过；
+- [x] `/D` 计划规范文档路径改为 DSH profile 可配置，代码不再硬编码具体规范；
 - [x] npm `dsh-workflow-shortcuts@0.1.0` 已发布；
 - [x] GitHub Release `v0.1.0` 已发布，资产名 `dsh-workflow-shortcuts.tgz`；
 - [x] awesome-dsh-plugin PR #15389 已提交。
@@ -85,3 +96,5 @@
 | 2026-11-18 | `npm test`（/D /G 3 条提示词） | 17/17 通过；断言两条提示词均只有 3 条要点 |
 | 2026-11-19 | `npm test`（/D 计划规范与授权前置） | 17/17 通过；断言 3 条要点含 AGENTS/写权限、PLAN 落点与 frontmatter、文档同步条件 |
 | 2026-11-19 | `npm test`（/D 提示词进一步精简） | 17/17 通过；断言精简后的 3 条要点 |
+| 2026-11-19 | `npm test`（/D 规范文档可配置） | 23/23 通过；覆盖 Host 默认值/清洗/注入与 Client 空/单项/三项配置 |
+| 2026-11-19 | `./scripts/check.sh --repo dsh-workflow-shortcuts` | 通过 |

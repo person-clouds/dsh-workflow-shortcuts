@@ -9,20 +9,22 @@ function loadPlugin(globals = {}) {
     IconPlanOutlineRegular: () => null,
     IconPlayOutlineRegular: () => null
   }
+  const window = {
+    __ModuleLoader__: {
+      load({ factory }) {
+        plugin = factory((id) => id === '@deepseek-ai/dsh-client-ui-primitives' ? icons : {})
+      }
+    },
+    ...(globals.window ?? {})
+  }
   const sandbox = {
     console,
     ...globals,
-    window: {
-      __ModuleLoader__: {
-        load({ factory }) {
-          plugin = factory((id) => id === '@deepseek-ai/dsh-client-ui-primitives' ? icons : {})
-        }
-      }
-    }
+    window
   }
   vm.runInNewContext(readFileSync(new URL('../client.js', import.meta.url), 'utf8'), sandbox)
   assert.ok(plugin, 'client.js 应通过 __ModuleLoader__ 注册')
-  return plugin
+  return { plugin, window }
 }
 
 function createElement(tag) {
@@ -160,9 +162,10 @@ function createHarness(options = {}) {
     }),
     effect: (factory) => factory()
   }
-  loadPlugin({ localStorage, document }).apply(ctx)
+  const { plugin, window } = loadPlugin({ localStorage, document, window: options.window })
+  plugin.apply(ctx)
   assert.ok(source, '应注册 / 输入源')
-  return { source, calls }
+  return { source, calls, window }
 }
 
 function clickPlan(dialog, index) {
@@ -174,7 +177,7 @@ function clickCancel(dialog) {
   dialog.children[2].listeners.click[0]()
 }
 
-test('/D：claim 后发送讨论提示词，并要求工作区相对路径 Markdown 链接', async () => {
+test('/D：claim 后发送讨论提示词，未配置规范时不输出具体路径', async () => {
   const { source, calls } = createHarness()
   assert.equal(source.order, -1000)
   const rows = await source.candidates({ sessionId: 's1' }, { query: '', signal: { aborted: false } })
@@ -191,12 +194,58 @@ test('/D：claim 后发送讨论提示词，并要求工作区相对路径 Markd
   assert.equal(calls.prompts.length, 1)
   assert.equal(calls.prompts[0].id, 's1')
   const prompt = calls.prompts[0].content[0].text
-  // 三条要点：授权与只读、计划规范与链接、顺手完成与收尾同步。
+  // 三条要点：授权与只读、按当前规范写计划、顺手完成与收尾同步。
   assert.match(prompt, /^1\. 先读工作区根 AGENTS\.md、PROJECT_INDEX 与目标仓 AGENTS\/SPEC，确认写权限；.*方案确认后再动手。$/m)
-  assert.match(prompt, /^2\. 确认后写 PLAN-\*\.md（单仓在目标仓，跨仓在工作区 doc\/plans\/）：.*implementation_status.*# PLAN：<简短标题>.*## 改动记录.*绝对全路径）。$/m)
+  assert.match(prompt, /^2\. 确认后按当前工作区\/仓库既有规范写 PLAN-\*\.md。$/m)
   assert.match(prompt, /^3\. 计划简短可执行；已定位的小改动直接做并说明；.*README\/STATUS\/PROJECT_INDEX（存在时）。$/m)
   assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
+  assert.doesNotMatch(prompt, /_meta\/doc\/task-workflow\.md/)
+  assert.doesNotMatch(prompt, /documentation-rules\.md/)
+  assert.doesNotMatch(prompt, /implementation_status|## 改动记录/)
   assert.match(prompt, /实现登录/)
+})
+
+test('/D：只配置 planDoc 时只出现计划规范', async () => {
+  const { source, calls } = createHarness({
+    window: {
+      __DSH_WORKFLOW_SHORTCUTS_CONFIG__: {
+        planDoc: '  /home/zh/www/doc/specs/documentation-rules.md  '
+      }
+    }
+  })
+  await source.matchSpace({ sessionId: 's1' }, '/D').claim.submit('写计划', {}, [])
+  const prompt = calls.prompts[0].content[0].text
+  assert.match(prompt, /^2\. 确认后写 PLAN-\*\.md，遵循以下规范：$/m)
+  assert.match(prompt, /^- 计划规范：\/home\/zh\/www\/doc\/specs\/documentation-rules\.md$/m)
+  assert.doesNotMatch(prompt, /工作流规范：|计划模板：/)
+  assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
+})
+
+test('/D：三项配置按顺序进入第 2 条，且空值与非字符串被忽略', async () => {
+  const { source, calls, window } = createHarness({
+    window: {
+      __DSH_WORKFLOW_SHORTCUTS_CONFIG__: {
+        workflowDoc: ' /home/zh/www/_meta/doc/task-workflow.md ',
+        planDoc: ' /home/zh/www/doc/specs/documentation-rules.md ',
+        planTemplate: ' /home/zh/www/_meta/doc/plan-template.md '
+      }
+    }
+  })
+  await source.matchSpace({ sessionId: 's1' }, '/D').claim.submit('写计划', {}, [])
+  const prompt = calls.prompts[0].content[0].text
+  assert.match(prompt, /- 工作流规范：\/home\/zh\/www\/_meta\/doc\/task-workflow\.md\n- 计划规范：\/home\/zh\/www\/doc\/specs\/documentation-rules\.md\n- 计划模板：\/home\/zh\/www\/_meta\/doc\/plan-template\.md/)
+  assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
+
+  window.__DSH_WORKFLOW_SHORTCUTS_CONFIG__ = {
+    workflowDoc: '   ',
+    planDoc: 42,
+    planTemplate: null
+  }
+  await source.matchSpace({ sessionId: 's1' }, '/D').claim.submit('再看一次', {}, [])
+  const updated = calls.prompts[1].content[0].text
+  assert.match(updated, /^2\. 确认后按当前工作区\/仓库既有规范写 PLAN-\*\.md。$/m)
+  assert.doesNotMatch(updated, /工作流规范：|计划规范：|计划模板：/)
+  assert.equal(updated.match(/^\d+\. /gm)?.length, 3)
 })
 
 test('/D：空任务时使用 D: 新讨论 标题', async () => {

@@ -25,9 +25,28 @@ The goal is to separate requirement discussion from code implementation so the i
 
 The plan path for `/G` may be absolute or relative to the current session working directory. Bare paths, quoted/backticked paths, and Markdown links are supported. Only `.md` plan files are accepted; `http(s)` links are rejected.
 
-`/D` sends three short points: read the workspace-root `AGENTS.md`/`PROJECT_INDEX` and target repo rules, confirm write permission, then investigate read-only; after the approach is confirmed write `PLAN-*.md` (target repo for single-repo work, workspace `doc/plans/` for cross-repo work) with only `implementation_status`/`created_at`/`updated_at` frontmatter, first H1 `# PLAN：<short title>`, a `## 改动记录` section, and a Markdown link at the end whose display text is relative to the workspace root and URL is absolute; keep the plan short and executable, make localized small changes directly with a note, then verify per the repo `AGENTS.md` and update README/STATUS/PROJECT_INDEX (when present).
+`/D` sends three short points: read the workspace-root `AGENTS.md`/`PROJECT_INDEX` and target repo rules, confirm write permission, then investigate read-only; after the approach is confirmed write `PLAN-*.md` following the optional Host-configured spec documents (or the current workspace/repo conventions when unconfigured); keep the plan short and executable, make localized small changes directly with a note, then verify per the repo `AGENTS.md` and update README/STATUS/PROJECT_INDEX (when present).
 
 Plan mode is selected when the input contains a `.md` path with a directory component, or a file name starting with `PLAN-`/`plan-`; any other non-empty input is treated as task text. Extra requirements may follow a plan path, e.g. `/G task/foo/PLAN-foo.md only touch the backend and add tests`.
+
+## `/D` spec document configuration
+
+`/D` no longer hardcodes plan location, frontmatter, H1, or `## 改动记录` rules. On submit it reads configuration injected by the DSH Host. All three fields are optional absolute paths; empty, whitespace-only, or non-string values are treated as unconfigured:
+
+```yaml
+- id: dsh-workflow-shortcuts
+  name: dsh-workflow-shortcuts
+  config:
+    workflowDoc: /home/zh/www/_meta/doc/task-workflow.md
+    planDoc: /home/zh/www/doc/specs/documentation-rules.md
+    planTemplate: /home/zh/www/_meta/doc/plan-template.md
+```
+
+- `workflowDoc`: workflow/authorization rules;
+- `planDoc`: plan document rules;
+- `planTemplate`: plan template.
+
+Only configured entries are listed in `/D` point 2. When all three are unconfigured, the prompt only says "按当前工作区/仓库既有规范写 PLAN-*.md。". After changing config, reload the Host configuration and refresh the page; the Client reads the current value on every `/D` submit and does not cache it. This affects only future `/D` prompts, not existing sessions or `/G`.
 
 For an empty `/G`, configure the search depth in browser `localStorage`: key `dsh-workflow-shortcuts.recentMessages`, default `5`, valid range `1–50`, invalid values fall back to `5`. Only `user/message` and `assistant/message` entries are scanned, newest first.
 
@@ -93,7 +112,7 @@ node -e "new (require('vm').Script)(require('fs').readFileSync('client.js','utf8
 npm pack --dry-run
 ```
 
-Tests use Node's built-in `node:test` and `vm`; they require neither a browser nor external services and cover plan mode, text mode, and argument errors.
+Tests use Node's built-in `node:test` and `vm`; Client tests require neither a browser nor external services, while Host tests use a minimal schema stub to verify config defaults, sanitization, and global injection.
 
 ## Publishing
 

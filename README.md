@@ -25,9 +25,28 @@ DSH Web 快捷命令，配合「先讨论、再落计划、开新会话实施」
 
 `/G` 的计划路径可以是绝对路径，也可以相对当前会话工作目录；支持裸路径、引号/反引号路径和 Markdown 链接，计划文件只接受 `.md`，`http(s)` 链接会被拒绝。
 
-`/D` 提示词固定为 3 条短要点：先读工作区根 `AGENTS.md`、`PROJECT_INDEX` 与目标仓规范，确认写权限后只调查不改文件；方案确认后写 `PLAN-*.md`（单仓在目标仓、跨仓在工作区 `doc/plans/`，frontmatter 仅 `implementation_status`/`created_at`/`updated_at`，首个 H1 固定为 `# PLAN：<简短标题>`，正文含 `## 改动记录`，回复末尾附显示名相对工作区根、地址为绝对全路径的 Markdown 链接）；计划简短可执行，已定位的小改动直接做并说明，收尾按仓库 `AGENTS.md` 验证并同步 README/STATUS/PROJECT_INDEX（存在时）。
+`/D` 提示词固定为 3 条短要点：先读工作区根 `AGENTS.md`、`PROJECT_INDEX` 与目标仓规范，确认写权限后只调查不改文件；方案确认后写 `PLAN-*.md`，具体规范文档路径来自可选的 Host 配置（未配置时按当前工作区/仓库既有规范执行）；计划简短可执行，已定位的小改动直接做并说明，收尾按仓库 `AGENTS.md` 验证并同步 README/STATUS/PROJECT_INDEX（存在时）。
 
 计划模式识别规则：输入中包含带目录的 `.md` 路径，或文件名以 `PLAN-`/`plan-` 开头时，按计划文档处理；其余非空输入按任务文字处理。计划路径后可以继续追加补充要求，例如 `/G task/foo/PLAN-foo.md 只改后端并补测试`。
+
+## `/D` 规范文档配置
+
+`/D` 不再在代码中硬编码计划目录、frontmatter、H1 与 `## 改动记录` 等规范，而是在提交时读取 DSH Host 注入的配置。三项均可省略，值为规范文档的绝对路径；空值、空白或非字符串按未配置处理：
+
+```yaml
+- id: dsh-workflow-shortcuts
+  name: dsh-workflow-shortcuts
+  config:
+    workflowDoc: /home/zh/www/_meta/doc/task-workflow.md
+    planDoc: /home/zh/www/doc/specs/documentation-rules.md
+    planTemplate: /home/zh/www/_meta/doc/plan-template.md
+```
+
+- `workflowDoc`：工作流/授权规范；
+- `planDoc`：计划文档规范；
+- `planTemplate`：计划模板。
+
+只把已配置项列入 `/D` 第 2 条；三项都未配置时，仅要求「按当前工作区/仓库既有规范写 PLAN-*.md。」。修改配置后需让 DSH 重新加载 Host 配置并刷新页面；Client 每次 `/D` 提交时读取当前值，不再缓存。该配置只影响之后发出的 `/D` 提示词，不改变已有会话或 `/G` 行为。
 
 空 `/G` 的搜索条数可通过浏览器 `localStorage` 配置：key 为 `dsh-workflow-shortcuts.recentMessages`，默认 `5`，合法范围 `1–50`，非法值回退 `5`。只读取 `user/message` 与 `assistant/message`，并从新到旧查找。
 
@@ -93,7 +112,7 @@ node -e "new (require('vm').Script)(require('fs').readFileSync('client.js','utf8
 npm pack --dry-run
 ```
 
-测试使用 Node 内置 `node:test` 和 `vm`，不依赖浏览器或外部服务。
+测试使用 Node 内置 `node:test` 和 `vm`；Client 测试不依赖浏览器或外部服务，Host 测试用最小 schema stub 验证配置默认值、清洗与全局注入。
 
 ## 发布
 
