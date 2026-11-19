@@ -25,7 +25,7 @@ DSH Web 快捷命令，配合「先讨论、再落计划、开新会话实施」
 
 `/G` 的计划路径可以是绝对路径，也可以相对当前会话工作目录；支持裸路径、引号/反引号路径和 Markdown 链接，计划文件只接受 `.md`，`http(s)` 链接会被拒绝。
 
-`/D` 提示词固定为 3 条短要点：先讨论澄清（先读工作区根 `AGENTS.md`、`PROJECT_INDEX` 与目标仓规范，确认目标仓和写权限，方案确认前只调查不改文件）；确认后写 `PLAN-*.md`（单仓放目标仓、跨仓放工作区 `doc/plans/`，frontmatter 只写 `implementation_status`/`created_at`/`updated_at`，首个 H1 固定为 `# PLAN：<简短标题>`（全角冒号），正文含 `## 改动记录`，回复末尾附显示名相对工作区根、地址为绝对全路径的 Markdown 链接）；计划短而可执行，简单且改动位置明确的点可直接顺手完成，收尾按仓库 `AGENTS.md` 验证并同步 README、STATUS、PROJECT_INDEX（存在时）。
+`/D` 提示词固定为 3 条短要点：先读工作区根 `AGENTS.md`、`PROJECT_INDEX` 与目标仓规范，确认写权限后只调查不改文件；方案确认后写 `PLAN-*.md`（单仓在目标仓、跨仓在工作区 `doc/plans/`，frontmatter 仅 `implementation_status`/`created_at`/`updated_at`，首个 H1 固定为 `# PLAN：<简短标题>`，正文含 `## 改动记录`，回复末尾附显示名相对工作区根、地址为绝对全路径的 Markdown 链接）；计划简短可执行，已定位的小改动直接做并说明，收尾按仓库 `AGENTS.md` 验证并同步 README/STATUS/PROJECT_INDEX（存在时）。
 
 计划模式识别规则：输入中包含带目录的 `.md` 路径，或文件名以 `PLAN-`/`plan-` 开头时，按计划文档处理；其余非空输入按任务文字处理。计划路径后可以继续追加补充要求，例如 `/G task/foo/PLAN-foo.md 只改后端并补测试`。
 

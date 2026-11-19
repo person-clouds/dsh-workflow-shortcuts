@@ -1,10 +1,15 @@
 # STATUS — dsh-workflow-shortcuts
 
-- 更新时间：2026-11-19（/D 提示词补齐计划规范与授权前置）
+- 更新时间：2026-11-19（/D 提示词进一步精简）
 - 版本：`0.2.0`（本地开发中，尚未发布）
 - 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
+
+## 2026-11-19 最新：/D 提示词进一步精简
+
+- [x] 3 条要点压缩为短句，仍保留授权与只读、计划落点、frontmatter、H1、`## 改动记录`、Markdown 链接、顺手完成与收尾同步；
+- [x] 测试断言同步更新，仍检查 3 条编号要点。
 
 ## 2026-11-19 最新：/D 提示词补齐计划规范与授权前置
 
@@ -79,3 +84,4 @@
 | 2026-11-18 | `npm pack --dry-run` | `dsh-workflow-shortcuts@0.2.0`，9 文件 |
 | 2026-11-18 | `npm test`（/D /G 3 条提示词） | 17/17 通过；断言两条提示词均只有 3 条要点 |
 | 2026-11-19 | `npm test`（/D 计划规范与授权前置） | 17/17 通过；断言 3 条要点含 AGENTS/写权限、PLAN 落点与 frontmatter、文档同步条件 |
+| 2026-11-19 | `npm test`（/D 提示词进一步精简） | 17/17 通过；断言精简后的 3 条要点 |
