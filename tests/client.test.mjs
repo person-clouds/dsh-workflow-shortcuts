@@ -191,10 +191,10 @@ test('/D：claim 后发送讨论提示词，并要求工作区相对路径 Markd
   assert.equal(calls.prompts.length, 1)
   assert.equal(calls.prompts[0].id, 's1')
   const prompt = calls.prompts[0].content[0].text
-  // 三条要点：讨论澄清、写计划并给链接、短计划与顺手同步。
-  assert.match(prompt, /^1\. 先讨论澄清：未明确要求前不改文件，不清楚就直接提问。$/m)
-  assert.match(prompt, /^2\. 讨论收敛后写 PLAN-\*\.md：.*# PLAN：<简短标题>.*地址用绝对全路径。$/m)
-  assert.match(prompt, /^3\. 计划短而可执行；简单且改动位置明确的点直接顺手完成，并同步 README、STATUS、PROJECT_INDEX。$/m)
+  // 三条要点：讨论澄清与授权、计划规范与链接、顺手完成与收尾同步。
+  assert.match(prompt, /^1\. 先讨论澄清：只调查不改文件；.*AGENTS\.md.*PROJECT_INDEX.*写权限.*$/m)
+  assert.match(prompt, /^2\. 方案确认后写 PLAN-\*\.md（单仓放目标仓，跨仓放工作区 doc\/plans\/）：.*implementation_status.*# PLAN：<简短标题>.*## 改动记录.*绝对全路径。$/m)
+  assert.match(prompt, /^3\. 计划短而可执行；简单且改动位置明确的点可直接顺手完成并说明；.*README、STATUS、PROJECT_INDEX（存在时）。$/m)
   assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
   assert.match(prompt, /实现登录/)
 })

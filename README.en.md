@@ -25,7 +25,7 @@ The goal is to separate requirement discussion from code implementation so the i
 
 The plan path for `/G` may be absolute or relative to the current session working directory. Bare paths, quoted/backticked paths, and Markdown links are supported. Only `.md` plan files are accepted; `http(s)` links are rejected.
 
-`/D` sends three short points: discuss and clarify without changing files until asked; write `PLAN-*.md` with its first H1 fixed to `# PLAN：<short title>` (full-width colon) and end the reply with a Markdown link whose display text is relative and URL is the absolute full path; keep the plan short and executable, and make simple, well-localized changes directly while updating README, STATUS, and PROJECT_INDEX.
+`/D` sends three short points: discuss and clarify first (read the workspace-root `AGENTS.md`/`PROJECT_INDEX` and the target repo's rules, confirm the target repo and write permission; read-only until the approach is confirmed); after confirmation write `PLAN-*.md` (in the target repo for single-repo work, under the workspace `doc/plans/` for cross-repo work) with frontmatter limited to `implementation_status`/`created_at`/`updated_at`, its first H1 fixed to `# PLAN：<short title>` (full-width colon), a `## 改动记录` section, and end the reply with a Markdown link whose display text is relative to the workspace root and URL is the absolute full path; keep the plan short and executable, and make simple, well-localized changes directly, then verify per the repo `AGENTS.md` and update README, STATUS, and PROJECT_INDEX (when present).
 
 Plan mode is selected when the input contains a `.md` path with a directory component, or a file name starting with `PLAN-`/`plan-`; any other non-empty input is treated as task text. Extra requirements may follow a plan path, e.g. `/G task/foo/PLAN-foo.md only touch the backend and add tests`.
 
@@ -66,7 +66,7 @@ The script creates a local symlink, registers the `package.json` dependency, bac
 ## Usage
 
 1. Type `/D` in the current session, choose "discuss", enter a task description, and press Enter.
-2. The agent discusses and clarifies first. Once requirements converge, it writes a plan document whose first H1 is `# PLAN：<short title>` and returns a Markdown link whose display text is relative and whose URL is the absolute full path, for example `[personalCloud/task/foo/PLAN-foo.md](/home/zh/www/personalCloud/task/foo/PLAN-foo.md)`.
+2. The agent discusses and clarifies first (read-only, confirming the target repo and write permission). Once the approach is confirmed, it writes a plan document per the plan rules and returns a Markdown link whose display text is relative to the workspace root and whose URL is the absolute full path, for example `[personalCloud/task/foo/PLAN-foo.md](/home/zh/www/personalCloud/task/foo/PLAN-foo.md)`.
 3. Type `/G <plan path>` or `/G <task text>`. The plugin creates a new session, renames it, and sends the matching execution prompt.
 
 `/G` uses the current session working directory as the new session workspace and registers that workspace automatically when needed. The execution prompt has three short points: read the workspace `AGENTS.md` first; in plan mode execute the plan document directly, and in text mode work from `任务：`; then verify and wrap up under `AGENTS.md`.
@@ -74,7 +74,7 @@ The script creates a local symlink, registers the `package.json` dependency, bac
 ## Security boundaries
 
 - Registers only a client-side `/` input source. It adds no public port and no host API.
-- `/D` sends a discussion prompt. If research finds a simple, well-localized change, the agent may implement it directly, but must update README, STATUS, PROJECT_INDEX, and related docs/status. Complex changes still require a plan and user confirmation.
+- `/D` sends a discussion prompt. The agent first investigates read-only and confirms the target repo/write permission; no files change before the approach is confirmed. Simple, well-localized changes may be implemented directly, with README, STATUS, PROJECT_INDEX (when present), and related docs updated. Complex changes still require a plan and user confirmation.
 - `/G` only parses the input and builds a prompt. In plan mode it reads the first 40 lines of the plan document solely to build the title and falls back to the file name when the read fails. An empty `/G` checks candidate readability via `remote.workspaceFiles.read` but does not validate plan content.
 - It does not read credentials, access network resources, or inject HTML.
 

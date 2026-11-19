@@ -1,10 +1,18 @@
 # STATUS — dsh-workflow-shortcuts
 
-- 更新时间：2026-11-18（/D、/G 提示词精简为 3 条）
+- 更新时间：2026-11-19（/D 提示词补齐计划规范与授权前置）
 - 版本：`0.2.0`（本地开发中，尚未发布）
 - 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
+
+## 2026-11-19 最新：/D 提示词补齐计划规范与授权前置
+
+- [x] `/D` 第 1 条补「只调查不改文件、先读工作区根 AGENTS/PROJECT_INDEX 与目标仓规范、确认目标仓和写权限、方案等确认」；
+- [x] `/D` 第 2 条补计划落点（单仓放目标仓、跨仓放工作区 `doc/plans/`）、frontmatter 三字段、`## 改动记录`，链接显示名改为相对工作区根；
+- [x] `/D` 第 3 条改为简单已定位改动可直接完成，收尾按仓库 AGENTS 验证，文档同步限「存在时」；
+- [x] 测试改为断言上述关键约束，仍保持 3 条要点；
+- [x] 对齐 `/home/zh/www/_meta/doc/task-workflow.md` 的计划规范；`/G` 行为与提示词未变。
 
 ## 2026-11-18 最新：/D、/G 提示词精简为 3 条
 
@@ -70,3 +78,4 @@
 | 2026-11-18 | `client.js` `vm.Script` 解析 | 通过 |
 | 2026-11-18 | `npm pack --dry-run` | `dsh-workflow-shortcuts@0.2.0`，9 文件 |
 | 2026-11-18 | `npm test`（/D /G 3 条提示词） | 17/17 通过；断言两条提示词均只有 3 条要点 |
+| 2026-11-19 | `npm test`（/D 计划规范与授权前置） | 17/17 通过；断言 3 条要点含 AGENTS/写权限、PLAN 落点与 frontmatter、文档同步条件 |

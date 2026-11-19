@@ -25,7 +25,7 @@ DSH Web 快捷命令，配合「先讨论、再落计划、开新会话实施」
 
 `/G` 的计划路径可以是绝对路径，也可以相对当前会话工作目录；支持裸路径、引号/反引号路径和 Markdown 链接，计划文件只接受 `.md`，`http(s)` 链接会被拒绝。
 
-`/D` 提示词固定为 3 条短要点：先讨论澄清且未明确要求前不改文件；收敛后写 `PLAN-*.md`，首个 H1 固定为 `# PLAN：<简短标题>`（全角冒号），回复末尾附显示相对路径、地址为绝对全路径的 Markdown 链接；计划短而可执行，简单且改动位置明确的点直接顺手完成并同步 README、STATUS、PROJECT_INDEX。
+`/D` 提示词固定为 3 条短要点：先讨论澄清（先读工作区根 `AGENTS.md`、`PROJECT_INDEX` 与目标仓规范，确认目标仓和写权限，方案确认前只调查不改文件）；确认后写 `PLAN-*.md`（单仓放目标仓、跨仓放工作区 `doc/plans/`，frontmatter 只写 `implementation_status`/`created_at`/`updated_at`，首个 H1 固定为 `# PLAN：<简短标题>`（全角冒号），正文含 `## 改动记录`，回复末尾附显示名相对工作区根、地址为绝对全路径的 Markdown 链接）；计划短而可执行，简单且改动位置明确的点可直接顺手完成，收尾按仓库 `AGENTS.md` 验证并同步 README、STATUS、PROJECT_INDEX（存在时）。
 
 计划模式识别规则：输入中包含带目录的 `.md` 路径，或文件名以 `PLAN-`/`plan-` 开头时，按计划文档处理；其余非空输入按任务文字处理。计划路径后可以继续追加补充要求，例如 `/G task/foo/PLAN-foo.md 只改后端并补测试`。
 
@@ -66,7 +66,7 @@ bash dsh-workflow-shortcuts/scripts/apply-profile.sh web
 ## 使用
 
 1. 在当前会话输入 `/D`，选择「讨论」后输入任务描述并回车。
-2. Agent 先讨论澄清，收敛后生成计划文档，并在回复末尾输出 Markdown 链接：显示名用相对路径，地址用绝对全路径，例如 `[personalCloud/task/foo/PLAN-foo.md](/home/zh/www/personalCloud/task/foo/PLAN-foo.md)`。
+2. Agent 先讨论澄清（只调查、不改文件，并确认目标仓与写权限）；方案确认后按计划规范生成计划文档，并在回复末尾输出 Markdown 链接：显示名用相对工作区根的路径，地址用绝对全路径，例如 `[personalCloud/task/foo/PLAN-foo.md](/home/zh/www/personalCloud/task/foo/PLAN-foo.md)`。
 3. 直接输入 `/G <计划路径>`、`/G <任务描述>`，或留空输入 `/G` 自动查找最近计划；插件会创建新会话、重命名并发送对应的执行提示词。
 
 `/G` 会把当前会话的工作目录作为新会话的工作区；工作区未登记时会自动登记。执行提示词固定为 3 条短要点：先读工作区 `AGENTS.md`；计划模式直接按计划文档执行、文字模式按 `任务：` 实施；完成后按 `AGENTS.md` 验证并收尾。
@@ -74,7 +74,7 @@ bash dsh-workflow-shortcuts/scripts/apply-profile.sh web
 ## 安全边界
 
 - 只注册 Client 侧 `/` 输入源，不新增公网端口、不新增 Host API。
-- `/D` 发送讨论提示词；Agent 在讨论/调研中发现简单且改动位置明确的功能点时，可按提示直接顺手完成，但必须同步 README、STATUS、PROJECT_INDEX 等文档与状态；复杂改动仍先出计划并等待确认。
+- `/D` 发送讨论提示词；Agent 先只读调研并确认目标仓/写权限，方案确认前不改文件；简单且改动位置明确的功能点可按提示直接顺手完成，并同步 README、STATUS、PROJECT_INDEX（存在时）等文档与状态；复杂改动仍先出计划并等待确认。
 - `/G` 只解析输入并构造提示词；计划模式仅读取计划文档开头 40 行用于生成标题，读取失败时回退文件名；空 `/G` 会用 `remote.workspaceFiles.read` 校验候选是否可读，但不校验计划内容。
 - 不读取凭据、不访问网络资源、不注入 HTML。
 

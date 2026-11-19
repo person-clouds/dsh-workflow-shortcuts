@@ -84,9 +84,9 @@ return index === -1 ? normalized : normalized.slice(index + 1);
 
 function discussionPrompt(task) {
 return [
-"1. 先讨论澄清：未明确要求前不改文件，不清楚就直接提问。",
-"2. 讨论收敛后写 PLAN-*.md：首个 H1 固定为 `# PLAN：<简短标题>`（全角冒号）；最终回复末尾附 Markdown 链接，显示名用相对当前目录的路径，地址用绝对全路径。",
-"3. 计划短而可执行；简单且改动位置明确的点直接顺手完成，并同步 README、STATUS、PROJECT_INDEX。",
+"1. 先讨论澄清：只调查不改文件；先读工作区根 AGENTS.md、PROJECT_INDEX 与目标仓 AGENTS/SPEC，确认目标仓和写权限；需求或范围不清就直接提问，方案等确认。",
+"2. 方案确认后写 PLAN-*.md（单仓放目标仓，跨仓放工作区 doc/plans/）：frontmatter 只写 implementation_status、created_at、updated_at，首个 H1 固定为 `# PLAN：<简短标题>`（全角冒号），正文含 `## 改动记录`；最终回复末尾附 Markdown 链接，显示名相对工作区根、地址用绝对全路径。",
+"3. 计划短而可执行；简单且改动位置明确的点可直接顺手完成并说明；收尾按仓库 AGENTS 验证，涉及行为变化再同步 README、STATUS、PROJECT_INDEX（存在时）。",
 "",
 "任务：",
 task.trim() || "（我还没想清楚，请先通过提问帮我澄清。）"
