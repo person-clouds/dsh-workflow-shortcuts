@@ -37,9 +37,9 @@ Plan mode is selected when the input contains a `.md` path with a directory comp
 - id: dsh-workflow-shortcuts
   name: dsh-workflow-shortcuts
   config:
-    workflowDoc: /home/zh/www/_meta/doc/task-workflow.md
+    workflowDoc: /home/zh/www/doc/specs/task-workflow.md
     planDoc: /home/zh/www/doc/specs/documentation-rules.md
-    planTemplate: /home/zh/www/_meta/doc/plan-template.md
+    planTemplate: ""
 ```
 
 - `workflowDoc`: workflow/authorization rules;

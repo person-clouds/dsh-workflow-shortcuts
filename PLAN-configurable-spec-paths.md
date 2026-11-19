@@ -53,7 +53,7 @@ updated_at: 2026-11-19 08:31:59
    - 无配置时只写：`按当前工作区/仓库既有规范写 PLAN-*.md。`
    - 保持提示词恰好 3 条编号，不恢复 frontmatter、H1、`## 改动记录` 等硬编码细则。
 5. 更新测试：
-   - 未配置时第 2 条不包含 `_meta/doc/task-workflow.md` 等具体路径；
+   - 未配置时第 2 条不包含 `doc/specs/task-workflow.md` 等具体路径；
    - 只配置 `planDoc` 时只出现计划规范；
    - 三项都配置时按顺序出现三项；
    - 空字符串、空白字符串、非字符串不产生路径；
@@ -65,9 +65,9 @@ updated_at: 2026-11-19 08:31:59
      - id: dsh-workflow-shortcuts
        name: dsh-workflow-shortcuts
        config:
-         workflowDoc: /home/zh/www/_meta/doc/task-workflow.md
+         workflowDoc: /home/zh/www/doc/specs/task-workflow.md
          planDoc: /home/zh/www/doc/specs/documentation-rules.md
-         planTemplate: /home/zh/www/_meta/doc/plan-template.md
+         planTemplate: ""
      ```
    - 说明三项均可省略；全空时由 AI 自行遵循当前规范。
 
