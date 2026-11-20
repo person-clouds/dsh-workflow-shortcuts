@@ -1,7 +1,7 @@
 # STATUS — dsh-workflow-shortcuts
 
-- 更新时间：2026-11-19（/D 规范文档路径改为 Host 配置）
-- 版本：`0.2.0`（本地开发中，尚未发布）
+- 更新时间：2026-11-20（发布 v0.2.0）
+- 版本：`0.2.0`（GitHub Release `v0.2.0` 已发布；npm 仍为 `0.1.0`，待 `npm login` 后补发）
 - 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
@@ -61,15 +61,17 @@
 - [x] `/D` 计划规范文档路径改为 DSH profile 可配置，代码不再硬编码具体规范；
 - [x] npm `dsh-workflow-shortcuts@0.1.0` 已发布；
 - [x] GitHub Release `v0.1.0` 已发布，资产名 `dsh-workflow-shortcuts.tgz`；
-- [x] awesome-dsh-plugin PR #15389 已提交。
+- [x] GitHub Release `v0.2.0` 已发布，资产名 `dsh-workflow-shortcuts.tgz`（20925 字节）；
+- [x] awesome-dsh-plugin PR #15389 已合并。
 
 ## 待办
 
 | # | 事项 | 说明 |
 |---|---|---|
 | 1 | 宿主机安装验收 | 执行 `bash dsh-workflow-shortcuts/scripts/apply-profile.sh web`，浏览器验证 `/D` 与 `/G` 的真实交互 |
-| 2 | 市场 PR 合并 | 仓库创建满 1 天后由 awesome-dsh-plugin CI 重跑并通过审核 |
-| 3 | npm 占位版本清理 | `0.0.0-stage` 是 npm 首次发布时的临时占位，不影响 `latest`；后续按 npm 支持情况清理 |
+| 2 | ~~市场 PR 合并~~ | #15389 已合并；市场按 `releases/latest` 自动取到 `v0.2.0` |
+| 3 | npm 补发 `0.2.0` | npm token 失效（`PUT ... 404`），需先 `npm login` 再重试 |
+| 4 | npm 占位版本清理 | `0.0.0-stage` 是 npm 首次发布时的临时占位，不影响 `latest`；后续按 npm 支持情况清理 |
 
 ## 验证记录
 
@@ -98,3 +100,6 @@
 | 2026-11-19 | `npm test`（/D 提示词进一步精简） | 17/17 通过；断言精简后的 3 条要点 |
 | 2026-11-19 | `npm test`（/D 规范文档可配置） | 23/23 通过；覆盖 Host 默认值/清洗/注入与 Client 空/单项/三项配置 |
 | 2026-11-19 | `./scripts/check.sh --repo dsh-workflow-shortcuts` | 通过 |
+| 2026-11-20 | `npm test` | 23/23 通过（0.2.0 发布前回归） |
+| 2026-11-20 | npm publish `0.2.0` | 失败：`PUT ... 404`，token 失效；待 `npm login` 后重试 |
+| 2026-11-20 | GitHub Release `v0.2.0` | 资产 `dsh-workflow-shortcuts.tgz` 20925 字节，`latest/download` 返回 200 |
