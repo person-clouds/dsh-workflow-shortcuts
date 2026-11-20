@@ -25,7 +25,7 @@ The goal is to separate requirement discussion from code implementation so the i
 
 The plan path for `/G` may be absolute or relative to the current session working directory. Bare paths, quoted/backticked paths, and Markdown links are supported. Only `.md` plan files are accepted; `http(s)` links are rejected.
 
-`/D` sends three short points: read the workspace-root `AGENTS.md`/`PROJECT_INDEX` and target repo rules, confirm write permission, then investigate read-only; after the approach is confirmed write `PLAN-*.md` following the optional Host-configured spec documents (or the current workspace/repo conventions when unconfigured); keep the plan short and executable, make localized small changes directly with a note, then verify per the repo `AGENTS.md` and update README/STATUS/PROJECT_INDEX (when present).
+`/D` sends three short points: read `PROJECT_INDEX` and `SPEC`, and for content exploration (not a routine bugfix) discuss without changing code; after the approach is confirmed write `PLAN-*.md` following the optional Host-configured spec documents (or the current workspace/repo conventions when unconfigured); keep the plan short and executable, fix localized bugs directly with a note, and keep README/STATUS/PROJECT_INDEX up to date.
 
 Plan mode is selected when the input contains a `.md` path with a directory component, or a file name starting with `PLAN-`/`plan-`; any other non-empty input is treated as task text. Extra requirements may follow a plan path, e.g. `/G task/foo/PLAN-foo.md only touch the backend and add tests`.
 

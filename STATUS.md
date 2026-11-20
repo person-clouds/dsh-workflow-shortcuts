@@ -6,7 +6,13 @@
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
 
-## 2026-11-21 最新：/D、/G 提示词支持工作区文件附加要求
+## 2026-11-21 最新：/D 默认提示词调整
+
+- [x] 第 1 条改为「读 PROJECT_INDEX 与 SPEC，内容探索（并非既定流程的bugfix），讨论时不要直接干」；
+- [x] 第 3 条改为「计划简短可执行；已定位的bugfix直接做并说明；维护好 README/STATUS/PROJECT_INDEX」；
+- [x] `/D` 第 2 条与 `/G` 提示词、附加要求机制不变；测试断言与 README/README.en 同步。
+
+## 2026-11-21：/D、/G 提示词支持工作区文件附加要求
 
 - [x] Host `Config` 新增 `discussionPromptFile`、`executionPromptFile`，默认 `.dsh/workflow-shortcuts/discussion.md`、`.dsh/workflow-shortcuts/execution.md`，注入前一并清洗；
 - [x] Client 在 `/D`、`/G` 提交时读取对应文件，非空内容以「附加要求：」段落追加：`/D` 位于 `任务：` 之前，`/G` 位于末尾；
@@ -113,3 +119,4 @@
 | 2026-11-20 | npm publish `0.2.0` | 发布成功（页面批准暂存版本后生效），`latest` = `0.2.0` |
 | 2026-11-20 | GitHub Release `v0.2.0` | 资产 `dsh-workflow-shortcuts.tgz` 20925 字节，`latest/download` 返回 200 |
 | 2026-11-20 | npm publish `0.2.1` | 被 npm 暂存未批准；放弃该版本，`v0.2.1` Release 已删除 |
+| 2026-11-21 | `npm test`（/D 默认提示词调整） | 28/28 通过；断言调整后的 3 条要点 |

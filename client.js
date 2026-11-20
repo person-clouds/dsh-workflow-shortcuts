@@ -146,9 +146,9 @@ const planLine = specs.length === 0
 ? "2. 确认后按当前工作区/仓库既有规范写 PLAN-*.md。"
 : `2. 确认后写 PLAN-*.md，遵循以下规范：\n${specs.join("\n")}`;
 const lines = [
-"1. 先读工作区根 AGENTS.md、PROJECT_INDEX 与目标仓 AGENTS/SPEC，确认写权限；仅调查不改文件，需求不清就提问，方案确认后再动手。",
+"1. 读 PROJECT_INDEX 与 SPEC，内容探索（并非既定流程的bugfix），讨论时不要直接干",
 planLine,
-"3. 计划简短可执行；已定位的小改动直接做并说明；收尾按仓库 AGENTS 验证，行为变化同步 README/STATUS/PROJECT_INDEX（存在时）。"
+"3. 计划简短可执行；已定位的bugfix直接做并说明；维护好 README/STATUS/PROJECT_INDEX"
 ];
 if (overlay !== "") lines.push("", "附加要求：", overlay);
 lines.push(

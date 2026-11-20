@@ -200,10 +200,10 @@ test('/D：claim 后发送讨论提示词，未配置规范时不输出具体路
   assert.equal(calls.prompts.length, 1)
   assert.equal(calls.prompts[0].id, 's1')
   const prompt = calls.prompts[0].content[0].text
-  // 三条要点：授权与只读、按当前规范写计划、顺手完成与收尾同步。
-  assert.match(prompt, /^1\. 先读工作区根 AGENTS\.md、PROJECT_INDEX 与目标仓 AGENTS\/SPEC，确认写权限；.*方案确认后再动手。$/m)
+  // 三条要点：探索类先讨论不动手、按当前规范写计划、bugfix 直接做并维护文档。
+  assert.match(prompt, /^1\. 读 PROJECT_INDEX 与 SPEC，内容探索（并非既定流程的bugfix），讨论时不要直接干$/m)
   assert.match(prompt, /^2\. 确认后按当前工作区\/仓库既有规范写 PLAN-\*\.md。$/m)
-  assert.match(prompt, /^3\. 计划简短可执行；已定位的小改动直接做并说明；.*README\/STATUS\/PROJECT_INDEX（存在时）。$/m)
+  assert.match(prompt, /^3\. 计划简短可执行；已定位的bugfix直接做并说明；维护好 README\/STATUS\/PROJECT_INDEX$/m)
   assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
   assert.doesNotMatch(prompt, /_meta\/doc\/task-workflow\.md/)
   assert.doesNotMatch(prompt, /documentation-rules\.md/)
