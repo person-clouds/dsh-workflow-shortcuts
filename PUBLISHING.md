@@ -1,6 +1,6 @@
 # 发布到 DSH 插件市场
 
-> 状态：**GitHub Release `v0.2.0` 已发布；npm 仍为 `dsh-workflow-shortcuts@0.1.0`，`0.2.0` 因 token 失效返回 404，待 `npm login` 后补发；awesome-dsh-plugin PR #15389 已合并。**
+> 状态：**GitHub Release `v0.2.0` 已发布；npm 仍为 `dsh-workflow-shortcuts@0.1.0`，`0.2.0` 因账号 2FA 保护返回 403（需 OTP 或 Bypass 2FA 的 granular token），暂无新版本可发；awesome-dsh-plugin PR #15389 已合并。**
 > 包名：`dsh-workflow-shortcuts`（npm 最新 `0.1.0`；`0.2.0` 待补发）
 > 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 > 市场条目：`market/person-clouds__dsh-workflow-shortcuts.yml`
