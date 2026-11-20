@@ -1,7 +1,7 @@
 # STATUS — dsh-workflow-shortcuts
 
-- 更新时间：2026-11-20（发布 v0.2.0）
-- 版本：`0.2.0`（GitHub Release `v0.2.0` 已发布；npm `0.2.0` 已提交但被暂存（staged）待批准，`latest` 仍为 `0.1.0`）
+- 更新时间：2026-11-20（发布 v0.2.1）
+- 版本：`0.2.1`（GitHub Release `v0.2.1` 与 npm `0.2.1` 均已发布；`0.2.0` 曾因 npm 暂存未生效）
 - 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
@@ -61,7 +61,7 @@
 - [x] `/D` 计划规范文档路径改为 DSH profile 可配置，代码不再硬编码具体规范；
 - [x] npm `dsh-workflow-shortcuts@0.1.0` 已发布；
 - [x] GitHub Release `v0.1.0` 已发布，资产名 `dsh-workflow-shortcuts.tgz`；
-- [x] GitHub Release `v0.2.0` 已发布，资产名 `dsh-workflow-shortcuts.tgz`（20925 字节）；
+- [x] GitHub Release `v0.2.1` 已发布，资产名 `dsh-workflow-shortcuts.tgz`；npm `0.2.1` 已发布；
 - [x] awesome-dsh-plugin PR #15389 已合并。
 
 ## 待办
@@ -69,8 +69,8 @@
 | # | 事项 | 说明 |
 |---|---|---|
 | 1 | 宿主机安装验收 | 执行 `bash dsh-workflow-shortcuts/scripts/apply-profile.sh web`，浏览器验证 `/D` 与 `/G` 的真实交互 |
-| 2 | ~~市场 PR 合并~~ | #15389 已合并；市场按 `releases/latest` 自动取到 `v0.2.0` |
-| 3 | npm 补发 `0.2.0` | 已被 npm 暂存（staged），待批准后生效；重发报 E409 |
+| 2 | ~~市场 PR 合并~~ | #15389 已合并；市场按 `releases/latest` 自动取到 `v0.2.1` |
+| 3 | ~~npm 发布 `0.2.0`~~ | `0.2.0` 被 npm 暂存未生效，已改用 `0.2.1` 发布成功 |
 | 4 | npm 占位版本清理 | `0.0.0-stage` 是 npm 首次发布时的临时占位，不影响 `latest`；后续按 npm 支持情况清理 |
 
 ## 验证记录
