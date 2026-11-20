@@ -1,10 +1,19 @@
 # STATUS — dsh-workflow-shortcuts
 
-- 更新时间：2026-11-20（发布 v0.2.0）
+- 更新时间：2026-11-21（未发布新版本）
 - 版本：`0.2.0`（GitHub Release `v0.2.0` 与 npm `0.2.0` 均已发布；`0.2.1` 被 npm 暂存未批准，已放弃）
 - 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
+
+## 2026-11-21 最新：/D、/G 提示词支持工作区文件附加要求
+
+- [x] Host `Config` 新增 `discussionPromptFile`、`executionPromptFile`，默认 `.dsh/workflow-shortcuts/discussion.md`、`.dsh/workflow-shortcuts/execution.md`，注入前一并清洗；
+- [x] Client 在 `/D`、`/G` 提交时读取对应文件，非空内容以「附加要求：」段落追加：`/D` 位于 `任务：` 之前，`/G` 位于末尾；
+- [x] 相对路径基于会话工作目录，绝对路径保留，`none`/`off`/`-` 关闭；文件缺失、不可读或空白时静默跳过；最多读取 200 行，超过 8000 字符截断并注明；
+- [x] 内置三条要点不变，两个文件互不影响；
+- [x] 新增 Client 测试覆盖默认/自定义/关闭、缺失/空白、截断与 `/D`、`/G` 隔离；Host 测试覆盖新默认值与清洗；
+- [x] `npm test` 28/28 通过，`scripts/check.sh --repo dsh-workflow-shortcuts` 通过。
 
 ## 2026-11-19 最新：/D 规范文档改为 Host 配置
 

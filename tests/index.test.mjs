@@ -45,23 +45,51 @@ registerHooks({
   }
 })
 
-const { Config, CONFIG_GLOBAL, apply, name, normalizeConfig } = await import('../index.js')
+const {
+  Config,
+  CONFIG_GLOBAL,
+  DEFAULT_DISCUSSION_PROMPT_FILE,
+  DEFAULT_EXECUTION_PROMPT_FILE,
+  apply,
+  name,
+  normalizeConfig
+} = await import('../index.js')
 
-test('Host：Config 三个字段默认空字符串', () => {
+test('Host：Config 默认值', () => {
   assert.equal(name, 'dsh-workflow-shortcuts')
-  assert.deepEqual(Config(), { workflowDoc: '', planDoc: '', planTemplate: '' })
+  assert.deepEqual(Config(), {
+    workflowDoc: '',
+    planDoc: '',
+    planTemplate: '',
+    discussionPromptFile: DEFAULT_DISCUSSION_PROMPT_FILE,
+    executionPromptFile: DEFAULT_EXECUTION_PROMPT_FILE
+  })
 })
 
-test('Host：normalizeConfig 只保留清洗后的三个字符串字段', () => {
-  assert.deepEqual(normalizeConfig(), { workflowDoc: '', planDoc: '', planTemplate: '' })
+test('Host：normalizeConfig 只保留清洗后的五个字符串字段', () => {
+  assert.deepEqual(normalizeConfig(), {
+    workflowDoc: '',
+    planDoc: '',
+    planTemplate: '',
+    discussionPromptFile: '',
+    executionPromptFile: ''
+  })
   assert.deepEqual(
     normalizeConfig({
       workflowDoc: ' /a.md ',
       planDoc: 42,
       planTemplate: '   ',
+      discussionPromptFile: ' prompts/d.md ',
+      executionPromptFile: 'none',
       extra: 'ignored'
     }),
-    { workflowDoc: '/a.md', planDoc: '', planTemplate: '' }
+    {
+      workflowDoc: '/a.md',
+      planDoc: '',
+      planTemplate: '',
+      discussionPromptFile: 'prompts/d.md',
+      executionPromptFile: 'none'
+    }
   )
 })
 
@@ -77,6 +105,8 @@ test('Host：webserver/index-inject 注入清洗后的全局配置', () => {
     workflowDoc: ' /home/zh/www/_meta/doc/task-workflow.md ',
     planDoc: ' /home/zh/www/doc/specs/documentation-rules.md ',
     planTemplate: null,
+    discussionPromptFile: ' prompts/discussion.md ',
+    executionPromptFile: ' /tmp/execution.md ',
     extra: 'ignored'
   })
   assert.equal(typeof listener, 'function')
@@ -89,12 +119,14 @@ test('Host：webserver/index-inject 注入清洗后的全局配置', () => {
     value: {
       workflowDoc: '/home/zh/www/_meta/doc/task-workflow.md',
       planDoc: '/home/zh/www/doc/specs/documentation-rules.md',
-      planTemplate: ''
+      planTemplate: '',
+      discussionPromptFile: 'prompts/discussion.md',
+      executionPromptFile: '/tmp/execution.md'
     }
   }])
 })
 
-test('Host：未配置时注入空配置，仍固定三个字段', () => {
+test('Host：未配置时注入空配置，仍固定五个字段', () => {
   let listener
   apply({ on(_event, handler) { listener = handler } })
   const table = []
@@ -102,6 +134,12 @@ test('Host：未配置时注入空配置，仍固定三个字段', () => {
   assert.deepEqual(table[0], {
     kind: 'global',
     name: '__DSH_WORKFLOW_SHORTCUTS_CONFIG__',
-    value: { workflowDoc: '', planDoc: '', planTemplate: '' }
+    value: {
+      workflowDoc: '',
+      planDoc: '',
+      planTemplate: '',
+      discussionPromptFile: '',
+      executionPromptFile: ''
+    }
   })
 })

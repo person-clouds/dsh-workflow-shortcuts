@@ -27,6 +27,8 @@ DSH Web 快捷命令，配合「先讨论、再落计划、开新会话实施」
 
 `/D` 提示词固定为 3 条短要点：先读工作区根 `AGENTS.md`、`PROJECT_INDEX` 与目标仓规范，确认写权限后只调查不改文件；方案确认后写 `PLAN-*.md`，具体规范文档路径来自可选的 Host 配置（未配置时按当前工作区/仓库既有规范执行）；计划简短可执行，已定位的小改动直接做并说明，收尾按仓库 `AGENTS.md` 验证并同步 README/STATUS/PROJECT_INDEX（存在时）。
 
+内置提示词之外，可以把自己的要求写进工作区文件追加到提示词，不必改插件代码，见下方「提示词附加要求」。
+
 计划模式识别规则：输入中包含带目录的 `.md` 路径，或文件名以 `PLAN-`/`plan-` 开头时，按计划文档处理；其余非空输入按任务文字处理。计划路径后可以继续追加补充要求，例如 `/G task/foo/PLAN-foo.md 只改后端并补测试`。
 
 ## `/D` 规范文档配置
@@ -47,6 +49,29 @@ DSH Web 快捷命令，配合「先讨论、再落计划、开新会话实施」
 - `planTemplate`：计划模板。
 
 只把已配置项列入 `/D` 第 2 条；三项都未配置时，仅要求「按当前工作区/仓库既有规范写 PLAN-*.md。」。修改配置后需让 DSH 重新加载 Host 配置并刷新页面；Client 每次 `/D` 提交时读取当前值，不再缓存。该配置只影响之后发出的 `/D` 提示词，不改变已有会话或 `/G` 行为。
+
+## 提示词附加要求
+
+内置提示词保持不变，但每次提交时可以追加自己的要求。默认读取当前会话工作目录下的两个文件：
+
+| 文件 | 作用 |
+| --- | --- |
+| `.dsh/workflow-shortcuts/discussion.md` | 追加到 `/D` 讨论提示词 |
+| `.dsh/workflow-shortcuts/execution.md` | 追加到 `/G` 执行提示词（计划模式与文字模式都生效） |
+
+只改文件，下一次 `/D`、`/G` 即生效，不用重启 DSH 或刷新页面。文件不存在、不可读或内容为空时静默跳过；只读取前 200 行，超过 8000 字符会截断并注明。内容以「附加要求：」段落追加：`/D` 放在 `任务：` 之前，`/G` 放在提示词最后。
+
+路径可通过 Host 配置修改，相对路径基于当前会话工作目录：
+
+```yaml
+- id: dsh-workflow-shortcuts
+  name: dsh-workflow-shortcuts
+  config:
+    discussionPromptFile: /home/zh/www/prompts/discussion.md
+    executionPromptFile: .dsh/workflow-shortcuts/execution.md
+```
+
+默认值分别为 `.dsh/workflow-shortcuts/discussion.md` 和 `.dsh/workflow-shortcuts/execution.md`；设为 `none`（或 `off`、`-`）关闭对应附加要求。配置改动仍需重新加载 Host 配置并刷新页面，文件内容则每次提交实时读取。
 
 空 `/G` 的搜索条数可通过浏览器 `localStorage` 配置：key 为 `dsh-workflow-shortcuts.recentMessages`，默认 `5`，合法范围 `1–50`，非法值回退 `5`。只读取 `user/message` 与 `assistant/message`，并从新到旧查找。
 

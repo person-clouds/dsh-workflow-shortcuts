@@ -119,6 +119,12 @@ function createHarness(options = {}) {
       async read(sessionId, path, range) {
         calls.reads.push({ id: sessionId, path, range })
         if (options.readError !== undefined) throw options.readError
+        if (Object.hasOwn(options.files ?? {}, path)) {
+          return { ok: true, value: { text: options.files[path] } }
+        }
+        if (path.includes('/.dsh/workflow-shortcuts/')) {
+          return { ok: false, error: { code: 'ENOENT', message: 'not found' } }
+        }
         if (Array.isArray(options.unreadable) && options.unreadable.includes(path)) {
           return { ok: false, error: { code: 'ENOENT', message: 'not found' } }
         }
@@ -501,4 +507,88 @@ test('/G 空参数：真实事件包装形态解析工作区相对路径', async
   assert.equal(calls.renames[0].title, 'G：文档受众统一')
   assert.match(calls.prompts[0].content[0].text, /计划文档：\n\/repo\/PLAN-doc-audience-all-repos\.md/)
   assert.equal(JSON.stringify(calls.opened), JSON.stringify(['s2']))
+})
+
+test('/D：默认读取工作区附加要求文件并追加到任务之前', async () => {
+  const overlay = '新想法先记到 doc/ideas.md；改代码前先说清影响面。'
+  const { source, calls } = createHarness({
+    files: { '/repo/.dsh/workflow-shortcuts/discussion.md': overlay }
+  })
+  await source.matchSpace({ sessionId: 's1' }, '/D').claim.submit('记录新想法', {}, [])
+  const prompt = calls.prompts[0].content[0].text
+  assert.equal(calls.reads[0].id, 's1')
+  assert.equal(calls.reads[0].path, '/repo/.dsh/workflow-shortcuts/discussion.md')
+  assert.equal(calls.reads[0].range.limit, 200)
+  assert.match(prompt, /^附加要求：$/m)
+  assert.match(prompt, /新想法先记到 doc\/ideas\.md；改代码前先说清影响面。/)
+  assert.ok(prompt.indexOf('附加要求：') < prompt.indexOf('任务：'))
+  assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
+})
+
+test('/D：缺少附加要求文件或内容为空时不出现附加段落', async () => {
+  const missing = createHarness()
+  await missing.source.matchSpace({ sessionId: 's1' }, '/D').claim.submit('正常讨论', {}, [])
+  assert.doesNotMatch(missing.calls.prompts[0].content[0].text, /附加要求：/)
+
+  const blank = createHarness({
+    files: { '/repo/.dsh/workflow-shortcuts/discussion.md': '  \n\n  ' }
+  })
+  await blank.source.matchSpace({ sessionId: 's1' }, '/D').claim.submit('空白要求', {}, [])
+  assert.doesNotMatch(blank.calls.prompts[0].content[0].text, /附加要求：/)
+})
+
+test('/D：自定义相对路径生效，none 关闭且不读文件', async () => {
+  const custom = createHarness({
+    window: {
+      __DSH_WORKFLOW_SHORTCUTS_CONFIG__: { discussionPromptFile: ' prompts/d.md ' }
+    },
+    files: {
+      '/repo/prompts/d.md': '自定义讨论要求',
+      '/repo/.dsh/workflow-shortcuts/discussion.md': '默认文件不应被读取'
+    }
+  })
+  await custom.source.matchSpace({ sessionId: 's1' }, '/D').claim.submit('自定义', {}, [])
+  assert.equal(custom.calls.reads[0].path, '/repo/prompts/d.md')
+  assert.match(custom.calls.prompts[0].content[0].text, /自定义讨论要求/)
+  assert.doesNotMatch(custom.calls.prompts[0].content[0].text, /默认文件不应被读取/)
+
+  const disabled = createHarness({
+    window: {
+      __DSH_WORKFLOW_SHORTCUTS_CONFIG__: { discussionPromptFile: 'NONE' }
+    },
+    files: { '/repo/.dsh/workflow-shortcuts/discussion.md': '不应出现' }
+  })
+  await disabled.source.matchSpace({ sessionId: 's1' }, '/D').claim.submit('关闭', {}, [])
+  assert.equal(disabled.calls.reads.length, 0)
+  assert.doesNotMatch(disabled.calls.prompts[0].content[0].text, /不应出现|附加要求：/)
+})
+
+test('/G：执行提示词追加 execution 附加要求，且与 /D 文件互不影响', async () => {
+  const { source, calls } = createHarness({
+    files: {
+      '/repo/.dsh/workflow-shortcuts/execution.md': '执行前先跑 npm test。',
+      '/repo/.dsh/workflow-shortcuts/discussion.md': '讨论文件不应出现。'
+    }
+  })
+  await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('修复登录问题', {}, [])
+  const prompt = calls.prompts[0].content[0].text
+  assert.match(prompt, /^附加要求：$/m)
+  assert.match(prompt, /执行前先跑 npm test。/)
+  assert.doesNotMatch(prompt, /讨论文件不应出现。/)
+  assert.ok(prompt.indexOf('附加要求：') > prompt.indexOf('3. 完成后'))
+})
+
+test('/G：计划模式同样追加执行附加要求，超长内容截断', async () => {
+  const { source, calls } = createHarness({
+    planText: '# 登录改造\n',
+    files: {
+      '/repo/.dsh/workflow-shortcuts/execution.md': '甲'.repeat(9000)
+    }
+  })
+  await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('task/PLAN-login.md', {}, [])
+  const prompt = calls.prompts[0].content[0].text
+  assert.match(prompt, /计划文档：\n\/repo\/task\/PLAN-login\.md/)
+  assert.match(prompt, /附加要求：\n甲+/)
+  assert.match(prompt, /已截断，超过 8000 字符/)
+  assert.ok(prompt.length < 9000)
 })

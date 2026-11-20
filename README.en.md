@@ -29,6 +29,29 @@ The plan path for `/G` may be absolute or relative to the current session workin
 
 Plan mode is selected when the input contains a `.md` path with a directory component, or a file name starting with `PLAN-`/`plan-`; any other non-empty input is treated as task text. Extra requirements may follow a plan path, e.g. `/G task/foo/PLAN-foo.md only touch the backend and add tests`.
 
+## Prompt overlays
+
+The built-in prompts stay unchanged, but each submit can append your own requirements. Two files are read from the current session working directory by default:
+
+| File | Purpose |
+| --- | --- |
+| `.dsh/workflow-shortcuts/discussion.md` | Appended to the `/D` discussion prompt |
+| `.dsh/workflow-shortcuts/execution.md` | Appended to the `/G` execution prompt (plan and text modes) |
+
+Edit the file and the next `/D` or `/G` picks it up; no DSH restart or page refresh is needed. Missing, unreadable, or blank files are skipped silently. Only the first 200 lines are read, and content over 8000 characters is truncated with a note. The content is appended as an "附加要求：" (extra requirements) block: before `任务：` for `/D`, and at the end for `/G`.
+
+Change the paths through Host config; relative paths resolve against the current session working directory:
+
+```yaml
+- id: dsh-workflow-shortcuts
+  name: dsh-workflow-shortcuts
+  config:
+    discussionPromptFile: /home/zh/www/prompts/discussion.md
+    executionPromptFile: .dsh/workflow-shortcuts/execution.md
+```
+
+Defaults are `.dsh/workflow-shortcuts/discussion.md` and `.dsh/workflow-shortcuts/execution.md`; set a value to `none` (or `off`, `-`) to disable that overlay. Config changes still require reloading the Host configuration and refreshing the page, while file contents are read on every submit.
+
 ## `/D` spec document configuration
 
 `/D` no longer hardcodes plan location, frontmatter, H1, or `## 改动记录` rules. On submit it reads configuration injected by the DSH Host. All three fields are optional absolute paths; empty, whitespace-only, or non-string values are treated as unconfigured:

@@ -30,13 +30,16 @@ status: current
 
 - `package.json`：`dsh.bundle.patch` → `cordis.patch.yml` 插入 `id: dsh-workflow-shortcuts`；`dsh.client.platform=web`，`immediately: true`；
 - 入口：`index.js`（Host `Config` 与全局配置注入）、`client.js`（命令注册、配置读取与提示词）；
-- 配置（均可选，默认 `""`）：
-  - `workflowDoc`：工作流/授权规范文档路径；
-  - `planDoc`：计划文档规范路径；
-  - `planTemplate`：计划模板路径；
-- Host 监听 `webserver/index-inject`，向页面注入 `kind: "global"`、`name: "__DSH_WORKFLOW_SHORTCUTS_CONFIG__"` 的对象，只含清洗后的上述三个字段；
-- Client 在每次 `/D` 提交时读取该全局对象；空值、空白、非字符串按未配置处理；三项均未配置时提示词只要求按当前工作区/仓库既有规范写 `PLAN-*.md`；
-- 命令：`/D`、`/G`，行为与提示词见 `README.md`；`/G` 行为不读取上述配置。
+- 配置：
+  - `workflowDoc`：工作流/授权规范文档路径，默认 `""`；
+  - `planDoc`：计划文档规范路径，默认 `""`；
+  - `planTemplate`：计划模板路径，默认 `""`；
+  - `discussionPromptFile`：`/D` 附加要求文件，默认 `.dsh/workflow-shortcuts/discussion.md`；
+  - `executionPromptFile`：`/G` 附加要求文件，默认 `.dsh/workflow-shortcuts/execution.md`。
+- Host 监听 `webserver/index-inject`，向页面注入 `kind: "global"`、`name: "__DSH_WORKFLOW_SHORTCUTS_CONFIG__"` 的对象，只含清洗后的上述五个字段；
+- Client 在每次 `/D`、`/G` 提交时读取该全局对象；空值、空白、非字符串按未配置处理；前三项均未配置时提示词只要求按当前工作区/仓库既有规范写 `PLAN-*.md`；
+- 附加要求文件：相对路径基于当前会话工作目录，`none`/`off`/`-` 表示关闭；每次提交读取 `remote.workspaceFiles.read(sessionId, path, { offset: 1, limit: 200 })`，只接受 `ok === true` 的文本；缺失、不可读或空白时静默跳过；内容去首尾空白，超过 8000 字符截断并注明；非空时以「附加要求：」段落追加（`/D` 在 `任务：` 之前，`/G` 在末尾）；
+- 命令：`/D`、`/G`，行为与提示词见 `README.md`。
 
 ## 运行方式
 

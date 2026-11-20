@@ -38,24 +38,58 @@ const DEFAULT_RECENT_MESSAGES = 5;
 const MIN_RECENT_MESSAGES = 1;
 const MAX_RECENT_MESSAGES = 50;
 const CONFIG_GLOBAL = "__DSH_WORKFLOW_SHORTCUTS_CONFIG__";
+const DEFAULT_DISCUSSION_PROMPT_FILE = ".dsh/workflow-shortcuts/discussion.md";
+const DEFAULT_EXECUTION_PROMPT_FILE = ".dsh/workflow-shortcuts/execution.md";
+const MAX_PROMPT_OVERLAY_LINES = 200;
+const MAX_PROMPT_OVERLAY_CHARS = 8000;
 
 /** 只保留非空字符串，并去掉首尾空白；缺失或非法值按未配置处理。 */
 function configDocPath(value) {
 return typeof value === "string" ? value.trim() : "";
 }
 
-/** 每次 /D 提交时读取当前注入配置，允许页面配置更新后无需重载代码。 */
+/** 每次 /D、/G 提交时读取当前注入配置，允许页面配置更新后无需重载代码。 */
 function workflowConfig() {
 try {
 const raw = typeof window === "undefined" ? undefined : window[CONFIG_GLOBAL];
 return {
 workflowDoc: configDocPath(raw?.workflowDoc),
 planDoc: configDocPath(raw?.planDoc),
-planTemplate: configDocPath(raw?.planTemplate)
+planTemplate: configDocPath(raw?.planTemplate),
+discussionPromptFile: configDocPath(raw?.discussionPromptFile),
+executionPromptFile: configDocPath(raw?.executionPromptFile)
 };
 } catch {
-return { workflowDoc: "", planDoc: "", planTemplate: "" };
+return {
+workflowDoc: "",
+planDoc: "",
+planTemplate: "",
+discussionPromptFile: "",
+executionPromptFile: ""
+};
 }
+}
+
+/** 空值回退默认文件；none/off/-（大小写不敏感）表示关闭附加要求。 */
+function resolveOverlayFile(value, fallback) {
+const text = configDocPath(value);
+if (text === "") return fallback;
+return /^(?:none|off|-)$/i.test(text) ? "" : text;
+}
+
+/** 解析附加要求文件的路径；相对路径基于会话工作目录，没有 cwd 时返回空串。 */
+function overlayPath(cwd, file) {
+if (file === "") return "";
+const value = String(file).trim();
+if (value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value)) return normalizePath(value);
+return cwd ? resolvePath(cwd, value) : "";
+}
+
+/** 截断过长的附加要求，避免把整篇文档塞进提示词。 */
+function clipPromptOverlay(text) {
+const value = String(text).trim();
+if (value.length <= MAX_PROMPT_OVERLAY_CHARS) return value;
+return `${value.slice(0, MAX_PROMPT_OVERLAY_CHARS).trimEnd()}\n…（已截断，超过 ${MAX_PROMPT_OVERLAY_CHARS} 字符）`;
 }
 
 /** 读取空 /G 搜索最近消息的条数；非法值回退默认 5。 */
@@ -102,7 +136,7 @@ const index = normalized.lastIndexOf("/");
 return index === -1 ? normalized : normalized.slice(index + 1);
 }
 
-function discussionPrompt(task) {
+function discussionPrompt(task, overlay = "") {
 const config = workflowConfig();
 const specs = [];
 if (config.workflowDoc !== "") specs.push(`- 工作流规范：${config.workflowDoc}`);
@@ -111,14 +145,18 @@ if (config.planTemplate !== "") specs.push(`- 计划模板：${config.planTempla
 const planLine = specs.length === 0
 ? "2. 确认后按当前工作区/仓库既有规范写 PLAN-*.md。"
 : `2. 确认后写 PLAN-*.md，遵循以下规范：\n${specs.join("\n")}`;
-return [
+const lines = [
 "1. 先读工作区根 AGENTS.md、PROJECT_INDEX 与目标仓 AGENTS/SPEC，确认写权限；仅调查不改文件，需求不清就提问，方案确认后再动手。",
 planLine,
-"3. 计划简短可执行；已定位的小改动直接做并说明；收尾按仓库 AGENTS 验证，行为变化同步 README/STATUS/PROJECT_INDEX（存在时）。",
+"3. 计划简短可执行；已定位的小改动直接做并说明；收尾按仓库 AGENTS 验证，行为变化同步 README/STATUS/PROJECT_INDEX（存在时）。"
+];
+if (overlay !== "") lines.push("", "附加要求：", overlay);
+lines.push(
 "",
 "任务：",
 task.trim() || "（我还没想清楚，请先通过提问帮我澄清。）"
-].join("\n");
+);
+return lines.join("\n");
 }
 
 /**
@@ -244,7 +282,7 @@ if (title !== "") fallback = title;
 return fallback;
 }
 
-function executionPrompt(cwd, request) {
+function executionPrompt(cwd, request, overlay = "") {
 const lines = [
 `1. 工作区：${cwd}；先读工作区 AGENTS.md，文档和代码按需查阅。`,
 ""
@@ -264,6 +302,8 @@ lines.push("", "补充要求：", request.instruction);
 lines.push("2. 按以下任务实施。", "任务：", request.text);
 lines.push("", "3. 完成后按 AGENTS.md 验证并收尾。");
 }
+
+if (overlay !== "") lines.push("", "附加要求：", overlay);
 
 return lines.join("\n");
 }
@@ -315,6 +355,22 @@ const result = await ctx.remote.workspaceFiles.read(sessionId, planPath, { offse
 return result?.ok === true;
 } catch {
 return false;
+}
+}
+
+/** 读取提示词的附加要求文件；缺失、不可读或为空时返回空串，不阻断命令。 */
+async function promptOverlay(sessionId, cwd, file) {
+const path = overlayPath(cwd, file);
+if (path === "") return "";
+try {
+const result = await ctx.remote.workspaceFiles.read(sessionId, path, {
+offset: 1,
+limit: MAX_PROMPT_OVERLAY_LINES
+});
+if (result?.ok !== true || typeof result.value?.text !== "string") return "";
+return clipPromptOverlay(result.value.text);
+} catch {
+return "";
 }
 }
 
@@ -434,7 +490,11 @@ return { kind: "error", text: `/${key} 不支持附件，请先把内容写入�
 }
 try {
 if (key === "D") {
-await sendPrompt(session.sessionId, discussionPrompt(args), discussionTitle(args));
+const cwd = sessions.list.getSnapshot().byId[session.sessionId]?.cwd;
+const config = workflowConfig();
+const file = resolveOverlayFile(config.discussionPromptFile, DEFAULT_DISCUSSION_PROMPT_FILE);
+const overlay = await promptOverlay(session.sessionId, cwd, file);
+await sendPrompt(session.sessionId, discussionPrompt(args, overlay), discussionTitle(args));
 return { kind: "success" };
 }
 return await startExecution(session.sessionId, args);
@@ -487,14 +547,18 @@ request = { kind: "plan", planPath, instruction: "" };
 }
 
 const workspace = await ensureWorkspace(cwd);
-const newSessionId = await sessions.create({ workspaceId: workspace.workspaceId });
 const title = await executionTitle(sessionId, request);
+const config = workflowConfig();
+const file = resolveOverlayFile(config.executionPromptFile, DEFAULT_EXECUTION_PROMPT_FILE);
+const overlay = await promptOverlay(sessionId, cwd, file);
+
+const newSessionId = await sessions.create({ workspaceId: workspace.workspaceId });
 
 await sessions.using(newSessionId, { source: "workflowShortcuts" }, async (reference) => {
 const renamed = await reference.binding.session.rename(title);
 if (!renamed.ok) throw remoteFailure("session.rename", renamed);
 const prompted = await reference.binding.session.prompt(
-[{ type: "text", text: executionPrompt(cwd, request) }],
+[{ type: "text", text: executionPrompt(cwd, request, overlay) }],
 "queue"
 );
 if (!prompted.ok) throw remoteFailure("session.prompt", prompted);
