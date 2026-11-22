@@ -6,7 +6,7 @@ var exports = module.exports;
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 
 /**
- * /D、/G 两个大写单字母快捷命令的 Client 实现。
+ * /D、/G、/V 三个大写单字母快捷命令的 Client 实现。
  *
  * Host 命令名只允许小写，所以这里注册一个独立的 `/` 输入源：
  * 菜单、空格、回车和命令 chip 恢复都返回自定义 claim，
@@ -16,7 +16,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const inject = ["inputTriggers", "sessions", "workspaces", "uiWorkspace", "remote", "remote.workspaceFiles"];
 
 // 与内置 /plan、/goal 等命令使用同一套图标组件。
-const { IconPlanOutlineRegular, IconPlayOutlineRegular } = require("@deepseek-ai/dsh-client-ui-primitives");
+const { IconPlanOutlineRegular, IconPlayOutlineRegular, IconChecklistOutlineRegular } = require("@deepseek-ai/dsh-client-ui-primitives");
 
 const COMMANDS = {
 D: {
@@ -30,6 +30,12 @@ name: "g",
 description: "执行：按计划文档或输入文字新建会话处理",
 hint: "<计划文档路径 | 任务描述>",
 icon: IconPlayOutlineRegular
+},
+V: {
+name: "v",
+description: "核验：新建只读核验会话，检查改动是否真的生效",
+hint: "[改动说明 | 快照 sha]",
+icon: IconChecklistOutlineRegular
 }
 };
 
@@ -49,6 +55,7 @@ const TODO_PREFIX = /^TODO(?:[：:]\s*|\s+(?=[DG][：:]))/u;
 const stripTodoPrefix = (title) => String(title ?? "").replace(TODO_PREFIX, "");
 const DEFAULT_DISCUSSION_PROMPT_FILE = ".dsh/workflow-shortcuts/discussion.md";
 const DEFAULT_EXECUTION_PROMPT_FILE = ".dsh/workflow-shortcuts/execution.md";
+const DEFAULT_VERIFY_PROMPT_FILE = ".dsh/workflow-shortcuts/verify.md";
 const MAX_PROMPT_OVERLAY_LINES = 200;
 const MAX_PROMPT_OVERLAY_CHARS = 8000;
 
@@ -57,7 +64,7 @@ function configDocPath(value) {
 return typeof value === "string" ? value.trim() : "";
 }
 
-/** 每次 /D、/G 提交时读取当前注入配置，允许页面配置更新后无需重载代码。 */
+/** 每次 /D、/G、/V 提交时读取当前注入配置，允许页面配置更新后无需重载代码。 */
 function workflowConfig() {
 try {
 const raw = typeof window === "undefined" ? undefined : window[CONFIG_GLOBAL];
@@ -66,7 +73,8 @@ workflowDoc: configDocPath(raw?.workflowDoc),
 planDoc: configDocPath(raw?.planDoc),
 planTemplate: configDocPath(raw?.planTemplate),
 discussionPromptFile: configDocPath(raw?.discussionPromptFile),
-executionPromptFile: configDocPath(raw?.executionPromptFile)
+executionPromptFile: configDocPath(raw?.executionPromptFile),
+verifyPromptFile: configDocPath(raw?.verifyPromptFile)
 };
 } catch {
 return {
@@ -74,7 +82,8 @@ workflowDoc: "",
 planDoc: "",
 planTemplate: "",
 discussionPromptFile: "",
-executionPromptFile: ""
+executionPromptFile: "",
+verifyPromptFile: ""
 };
 }
 }
@@ -317,6 +326,38 @@ if (overlay !== "") lines.push("", "附加要求：", overlay);
 return lines.join("\n");
 }
 
+/**
+ * 核验会话提示词：只读、最多两轮、只报告不改。
+ *
+ * 预算与只读由 context-guard 的核验态强制（标题 `V：`），
+ * 这里的文字只是行为规范；阈值不在提示词里重复。
+ */
+function verifyPrompt(snapshot, task, overlay = "") {
+const sha = String(snapshot).trim();
+const scope = String(task).trim();
+const lines = [
+"只读核验会话：只核执行结果与行为是否生效；不改代码、不提交、不装依赖、不重启服务。",
+""
+];
+if (sha !== "") lines.push(`快照：${sha}`);
+lines.push(
+"步骤：",
+"1. 按 change-verify 技能的步骤核验（未加载时按同义步骤：读本次改动、跑验收命令、核对实际行为）。",
+"2. 最多两轮；两轮仍未通过就以「不通过」收尾，不要继续加轮次。",
+"3. 只报告，不改代码；发现问题指出文件:行与建议修补要点。",
+""
+);
+if (scope !== "") lines.push("核验范围：", scope, "");
+lines.push(
+"报告格式：",
+"- 结论：通过 / 不通过（一句话）。",
+"- 问题清单：严重度 + 文件:行 + 现象 + 建议。",
+"- 需要你执行：列出要主会话执行的命令或条目；没有就写「无」。"
+);
+if (overlay !== "") lines.push("", "附加要求：", overlay);
+return lines.join("\n");
+}
+
 function apply(ctx) {
 const sessions = ctx.sessions;
 const workspaces = ctx.workspaces;
@@ -542,6 +583,7 @@ const overlay = await promptOverlay(session.sessionId, cwd, file);
 await sendPrompt(session.sessionId, discussionPrompt(args, overlay), discussionTitle(args));
 return { kind: "success" };
 }
+if (key === "V") return await startVerification(session.sessionId, args);
 return await startExecution(session.sessionId, args);
 } catch (error) {
 return errorOutcome(error);
@@ -613,6 +655,37 @@ uiWorkspace.openSession(newSessionId);
 return { kind: "success" };
 }
 
+/** 核验会话：标题 `V：…`，context-guard 据此切只读与核验预算。 */
+async function startVerification(sessionId, rawArgs) {
+const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
+if (!cwd) throw new Error("无法确定当前会话的工作目录，/V 已取消。");
+const text = String(rawArgs).trim();
+const snapshotMatch = text.match(/(?:快照|snapshot)[：:]\s*([0-9a-f]{7,40})/i);
+const snapshot = snapshotMatch === null ? "" : snapshotMatch[1];
+const scope = snapshotMatch === null ? text : text.replace(snapshotMatch[0], "").replace(/^[\s,，;；]+/, "").trim();
+const title = `V：${scope === "" ? "核验改动" : summarizeTitle(scope)}`;
+
+const workspace = await ensureWorkspace(cwd);
+const config = workflowConfig();
+const file = resolveOverlayFile(config.verifyPromptFile, DEFAULT_VERIFY_PROMPT_FILE);
+const overlay = await promptOverlay(sessionId, cwd, file);
+
+const newSessionId = await sessions.create({ workspaceId: workspace.workspaceId });
+
+await sessions.using(newSessionId, { source: "workflowShortcuts" }, async (reference) => {
+const renamed = await reference.binding.session.rename(title);
+if (!renamed.ok) throw remoteFailure("session.rename", renamed);
+const prompted = await reference.binding.session.prompt(
+[{ type: "text", text: verifyPrompt(snapshot, scope, overlay) }],
+"queue"
+);
+if (!prompted.ok) throw remoteFailure("session.prompt", prompted);
+});
+
+uiWorkspace.openSession(newSessionId);
+return { kind: "success" };
+}
+
 async function ensureWorkspace(cwd) {
 const target = normalizePath(cwd);
 const existing = workspaces.list
@@ -624,7 +697,7 @@ return workspaces.create({ path: cwd });
 
 function keyOfToken(token) {
 const raw = token.startsWith("/") ? token.slice(1) : token;
-return raw === "D" || raw === "G" ? raw : undefined;
+return raw === "D" || raw === "G" || raw === "V" ? raw : undefined;
 }
 
 const source = {

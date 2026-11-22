@@ -52,6 +52,7 @@ const {
   CONFIG_GLOBAL,
   DEFAULT_DISCUSSION_PROMPT_FILE,
   DEFAULT_EXECUTION_PROMPT_FILE,
+  DEFAULT_VERIFY_PROMPT_FILE,
   apply,
   name,
   normalizeConfig,
@@ -66,17 +67,19 @@ test('Host：Config 默认值', () => {
     planDoc: '',
     planTemplate: '',
     discussionPromptFile: DEFAULT_DISCUSSION_PROMPT_FILE,
-    executionPromptFile: DEFAULT_EXECUTION_PROMPT_FILE
+    executionPromptFile: DEFAULT_EXECUTION_PROMPT_FILE,
+    verifyPromptFile: DEFAULT_VERIFY_PROMPT_FILE
   })
 })
 
-test('Host：normalizeConfig 只保留清洗后的五个字符串字段', () => {
+test('Host：normalizeConfig 只保留清洗后的六个字符串字段', () => {
   assert.deepEqual(normalizeConfig(), {
     workflowDoc: '',
     planDoc: '',
     planTemplate: '',
     discussionPromptFile: '',
-    executionPromptFile: ''
+    executionPromptFile: '',
+    verifyPromptFile: ''
   })
   assert.deepEqual(
     normalizeConfig({
@@ -85,6 +88,7 @@ test('Host：normalizeConfig 只保留清洗后的五个字符串字段', () => 
       planTemplate: '   ',
       discussionPromptFile: ' prompts/d.md ',
       executionPromptFile: 'none',
+      verifyPromptFile: ' prompts/v.md ',
       extra: 'ignored'
     }),
     {
@@ -92,7 +96,8 @@ test('Host：normalizeConfig 只保留清洗后的五个字符串字段', () => 
       planDoc: '',
       planTemplate: '',
       discussionPromptFile: 'prompts/d.md',
-      executionPromptFile: 'none'
+      executionPromptFile: 'none',
+      verifyPromptFile: 'prompts/v.md'
     }
   )
 })
@@ -111,6 +116,7 @@ test('Host：webserver/index-inject 注入清洗后的全局配置', () => {
     planTemplate: null,
     discussionPromptFile: ' prompts/discussion.md ',
     executionPromptFile: ' /tmp/execution.md ',
+    verifyPromptFile: ' /tmp/verify.md ',
     extra: 'ignored'
   })
   assert.equal(typeof listener, 'function')
@@ -125,12 +131,13 @@ test('Host：webserver/index-inject 注入清洗后的全局配置', () => {
       planDoc: '/home/zh/www/doc/specs/documentation-rules.md',
       planTemplate: '',
       discussionPromptFile: 'prompts/discussion.md',
-      executionPromptFile: '/tmp/execution.md'
+      executionPromptFile: '/tmp/execution.md',
+      verifyPromptFile: '/tmp/verify.md'
     }
   }])
 })
 
-test('Host：未配置时注入空配置，仍固定五个字段', () => {
+test('Host：未配置时注入空配置，仍固定六个字段', () => {
   let listener
   apply({ on(_event, handler) { listener = handler } })
   const table = []
@@ -143,7 +150,8 @@ test('Host：未配置时注入空配置，仍固定五个字段', () => {
       planDoc: '',
       planTemplate: '',
       discussionPromptFile: '',
-      executionPromptFile: ''
+      executionPromptFile: '',
+      verifyPromptFile: ''
     }
   })
 })

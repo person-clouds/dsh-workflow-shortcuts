@@ -7,7 +7,8 @@ function loadPlugin(globals = {}) {
   let plugin
   const icons = {
     IconPlanOutlineRegular: () => null,
-    IconPlayOutlineRegular: () => null
+    IconPlayOutlineRegular: () => null,
+    IconChecklistOutlineRegular: () => null
   }
   const window = {
     __ModuleLoader__: {
@@ -194,9 +195,10 @@ test('/D：claim 后发送讨论提示词，未配置规范时不输出具体路
   const { source, calls } = createHarness()
   assert.equal(source.order, -1000)
   const rows = await source.candidates({ sessionId: 's1' }, { query: '', signal: { aborted: false } })
-  assert.equal(JSON.stringify(rows.map((row) => row.name)), JSON.stringify(['D', 'G']))
+  assert.equal(JSON.stringify(rows.map((row) => row.name)), JSON.stringify(['D', 'G', 'V']))
   assert.equal(typeof rows[0].icon, 'function')
   assert.equal(typeof rows[1].icon, 'function')
+  assert.equal(typeof rows[2].icon, 'function')
   const outcome = source.matchEnter({ sessionId: 's1' }, '/D 实现登录', undefined, { attachments: 0 })
   assert.deepEqual(outcome.claim.token, '/D ')
   const result = await outcome.claim.submit('实现登录', {}, [])
@@ -634,4 +636,48 @@ test('/ok：TODO D: 前缀同样可清', async () => {
   const claim = (await okSource.matchEnter({ sessionId: 's1' }, '/ok', undefined, { attachments: 0 })).claim
   await claim.submit()
   assert.equal(calls.renames[0].title, 'D: 写计划')
+})
+
+test('/V：新建只读核验会话，标题带 V：前缀并注入快照与两轮封顶', async () => {
+  const { source, calls } = createHarness()
+  assert.equal(JSON.stringify(source.lexicon({ sessionId: 's1' })), JSON.stringify(['D', 'G', 'V']))
+  const outcome = source.matchEnter({ sessionId: 's1' }, '/V 核验 guard 改动', undefined, { attachments: 0 })
+  assert.equal(outcome.claim.token, '/V ')
+  assert.equal(outcome.claim.hint, '[改动说明 | 快照 sha]')
+  const result = await outcome.claim.submit('核验 guard 改动 快照：abc1234', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.renames[0].id, 's2')
+  assert.equal(calls.renames[0].title, 'V：核验 guard 改动')
+  assert.deepEqual(calls.opened, ['s2'])
+  const prompt = calls.prompts[0].content[0].text
+  assert.match(prompt, /只读核验会话/)
+  assert.match(prompt, /^快照：abc1234$/m)
+  assert.match(prompt, /最多两轮/)
+  assert.match(prompt, /只报告，不改代码/)
+  assert.match(prompt, /需要你执行/)
+  assert.doesNotMatch(prompt, /最多 25 次|25 次|40 次/)
+})
+
+test('/V：空参数使用「核验改动」标题，附件直接报错', async () => {
+  const { source, calls } = createHarness()
+  const empty = await source.matchSpace({ sessionId: 's1' }, '/V').claim.submit('   ', {}, [])
+  assert.equal(empty.kind, 'success')
+  assert.equal(calls.renames[0].title, 'V：核验改动')
+  const withAttachment = await source.matchSpace({ sessionId: 's1' }, '/V').claim.submit('看下', {}, [{ name: 'a.txt' }])
+  assert.equal(withAttachment.kind, 'error')
+  assert.match(withAttachment.text, /不支持附件/)
+})
+
+test('/V：配置 verifyPromptFile 时把附加要求拼进提示词', async () => {
+  const { source, calls } = createHarness({
+    window: {
+      __DSH_WORKFLOW_SHORTCUTS_CONFIG__: { verifyPromptFile: 'prompts/verify.md' }
+    },
+    files: { '/repo/prompts/verify.md': '附加：只看 lib/verify-mode.js' }
+  })
+  await source.matchSpace({ sessionId: 's1' }, '/V').claim.submit('核验预算', {}, [])
+  const prompt = calls.prompts[0].content[0].text
+  assert.match(prompt, /附加要求：/)
+  assert.match(prompt, /只看 lib\/verify-mode\.js/)
 })

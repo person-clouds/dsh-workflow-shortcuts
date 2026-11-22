@@ -2,11 +2,20 @@
 
 - 更新时间：2026-11-22
 - 版本：`0.3.1`（文档与文案修订；`0.3.0` 的 npm 包含 `session/event` 与 `/ok`，`0.3.1` 发布后 `latest` 可查）
-- 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理，`/ok` 清除会话标题的 TODO 标记。
+- 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理，`/V` 新建只读核验会话，`/ok` 清除会话标题的 TODO 标记。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
 
-## 2026-11-22 最新：TODO 标题与 `/ok`（0.3.0 起）
+## 2026-11-22 最新：/V 核验层
+
+- [x] 新增 `/V [改动说明 | 快照 sha]`：新建会话、标题 `V：<摘要>`（空参数 `V：核验改动`）、发送只读核验提示词；
+- [x] 提示词约定：按 `change-verify` 步骤核验、最多两轮、只报告不改、结论与问题清单分开、末段「需要你执行」；`快照：<sha>` 原样带入供 `context-guard` 派单去重；
+- [x] Host `Config` 新增 `verifyPromptFile`（默认 `.dsh/workflow-shortcuts/verify.md`），注入对象改为六个字段；`/V` 与 `/D`、`/G`、`/ok` 输入源互不影响；
+- [x] 只读与预算由 `dsh-context-guard` 按标题 `V：`/`TODO：V：` 强制，提示词不重复阈值；
+- [x] SPEC.md、README.md、README.en.md 同步；测试新增 `/V` 建会话/标题/快照/空参/附件/附加要求用例；
+- [x] `npm test` 53/53 通过。
+
+## 2026-11-22：TODO 标题与 `/ok`（0.3.0 起）
 
 - [x] 从 `dsh-workbench` 迁入 TODO 标题机制：Host 监听 `session/event`，助手消息末尾命中「需要你执行」隐藏标记时把会话标题改为 `TODO：<原标题>`；
 - [x] 原标题以 `/D`、`/G` 等命令前缀开头时用 `TODO <原标题>`，避免冒号二次嵌套；已带 `TODO` 前缀时幂等，子代理消息不触发；
@@ -91,7 +100,7 @@
 
 | # | 事项 | 说明 |
 |---|---|---|
-| 1 | 宿主机安装验收 | 执行 `bash dsh-workflow-shortcuts/scripts/apply-profile.sh web`，浏览器验证 `/D`、`/G` 与 `/ok` 的真实交互 |
+| 1 | 宿主机安装验收 | 执行 `bash dsh-workflow-shortcuts/scripts/apply-profile.sh web`，浏览器验证 `/D`、`/G`、`/V` 与 `/ok` 的真实交互（`/V` 需与 `dsh-context-guard` 核验态一起验证） |
 | 2 | ~~市场 PR 合并~~ | #15389 已合并；市场按 `releases/latest` 自动取到 `v0.2.0` |
 | 3 | ~~npm 发布 `0.2.0`~~ | 已发布，`latest` = `0.2.0`；`0.2.1` 被暂存未批准，已放弃 |
 | 4 | npm 占位版本清理 | `0.0.0-stage` 是 npm 首次发布时的临时占位，不影响 `latest`；后续按 npm 支持情况清理 |
@@ -136,3 +145,4 @@
 | 2026-11-22 | `npm test`（0.3.1 文档与描述修订） | 50/50 通过 |
 | 2026-11-22 | `npm publish` / `npm view` | `dsh-workflow-shortcuts@0.3.1` 已发布，`latest` = `0.3.1` |
 | 2026-11-22 | GitHub Release `v0.3.1` | 资产 `dsh-workflow-shortcuts.tgz` 28165 字节，`latest/download` 返回 200，内含 `version: 0.3.1` |
+| 2026-11-22 | `npm test`（/V 核验层） | 53/53 通过；覆盖 `/V` 新会话/标题/快照提取/空参/附件拒绝/附加要求拼接 |
