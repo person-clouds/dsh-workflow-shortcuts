@@ -37,7 +37,7 @@ The install script, GitHub Release tarball and local link installs are documente
 
 ## Features
 
-1. **`/D` discussion**: sends a fixed 3-point prompt: read `PROJECT_INDEX`/`SPEC`, discuss only without changing files, write the plan after confirmation. The session is renamed to `D: <summary>` (`D: 新讨论` for empty input).
+1. **`/D` discussion**: sends a fixed 3-point prompt: read `PROJECT_INDEX`, discuss only without changing files, write the plan after confirmation. The session is renamed to `D: <summary>` (`D: 新讨论` for empty input).
 2. **`/G` plan mode**: input containing a `.md` path with directories, or a filename starting with `PLAN-`/`plan-`, is treated as a plan document; extra requirements may follow, e.g. `/G task/foo/PLAN-foo.md only backend plus tests`.
 3. **`/G` text mode**: any other non-empty input becomes its own task session with the execution prompt.
 4. **`/G` empty input**: searches the current session's recent user/assistant messages for readable `.md` plans; one match runs immediately, several open a picker, cancel or no match creates no session. The count comes from browser `localStorage` key `dsh-workflow-shortcuts.recentMessages` (default 5, range 1–50).

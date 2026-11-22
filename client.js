@@ -164,7 +164,7 @@ const planLine = specs.length === 0
 ? "2. 确认后按当前工作区/仓库既有规范写 PLAN-*.md。"
 : `2. 确认后写 PLAN-*.md，遵循以下规范：\n${specs.join("\n")}`;
 const lines = [
-"1. 读 PROJECT_INDEX 与 SPEC，内容探索（并非既定流程的bugfix），讨论时不要直接干",
+"1. 读 PROJECT_INDEX，内容探索（并非既定流程的bugfix），讨论时不要直接干",
 planLine,
 "3. 计划简短可执行；已定位的bugfix直接做并说明；维护好 README/STATUS/PROJECT_INDEX"
 ];

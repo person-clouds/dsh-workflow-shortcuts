@@ -6,7 +6,13 @@
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
 
-## 2026-11-22 最新：/V 核验层
+## 2026-11-22 最新：/D 第 1 条去掉 SPEC
+
+- [x] `/D` 第 1 条由「读 PROJECT_INDEX 与 SPEC」改为「读 PROJECT_INDEX」，减少无关规范读取；
+- [x] 测试断言、README.md、README.en.md 同步；
+- [x] `npm test` 53/53 通过。
+
+## 2026-11-22：/V 核验层
 
 - [x] 新增 `/V [改动说明 | 快照 sha]`：新建会话、标题 `V：<摘要>`（空参数 `V：核验改动`）、发送只读核验提示词；
 - [x] 提示词约定：按 `change-verify` 步骤核验、最多两轮、只报告不改、结论与问题清单分开、末段「需要你执行」；`快照：<sha>` 原样带入供 `context-guard` 派单去重；
