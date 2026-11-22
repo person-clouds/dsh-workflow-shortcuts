@@ -7,7 +7,7 @@ status: current
 
 # dsh-workflow-shortcuts
 
-Workflow slash commands for DSH Web: `/D` discusses and writes a plan, `/G` starts a fresh session from a plan or free-form task, `/V` opens a read-only verification session, `/VP` opens a read-only plan-verification session, and `/ok` clears the TODO prefix from a session title. The read-only and budget hard guard for `/V` and `/VP` requires `@fenghoer/dsh-context-guard` >= `0.5.0`; installing shortcuts alone gives prompt constraints only, not a real hard block.
+Workflow slash commands for DSH Web: `/D` discusses and writes a plan, `/G` starts a fresh session from a plan or free-form task, `/V` opens a read-only verification session, `/VP` opens a read-only plan-verification session, and `/ok` clears the TODO prefix from a session title. The read-only and budget hard guard for `/V` and `/VP` requires `@fenghoer/dsh-context-guard` >= `0.5.0`; installing shortcuts alone gives prompt constraints only, not a real hard block. Both verification skills are manual-only: they run only for `/V`, `/VP`, or an explicit verification request, never automatically; pre-commit self-checks stay with the implementing session.
 
 ## What matters most
 

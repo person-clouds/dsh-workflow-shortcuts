@@ -6,7 +6,14 @@
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
 
-## 2026-11-22 最新：命令输入支持附件（0.5.0）
+## 2026-11-22 最新：核验技能改为手动触发（0.5.0）
+
+- [x] `change-verify`、`plan-verify` 的 `description`/`whenToUse` 去掉「改动收尾时」「D 阶段交付计划前」等自动触发措辞，改为只在 `/V`、`/VP` 或用户明确要求时进入；
+- [x] 两个技能的「何时用」各加一条「不自动」：提交前自检（测试、门禁、入口回放）由实施会话完成，不自动派发核验；
+- [x] `README.md`、`README.en.md` 同步说明两个技能不自动触发；配套 `doc/specs/task-workflow.md` §7 同步改为实施会话自检 + 用户 `/V` 才派发；
+- [x] 技能目录热更新已生效（本会话 available skills 中两条描述已是新版），但装载旧版的 profile 需重启 `dsh web` 后复核。
+
+## 2026-11-22：命令输入支持附件（0.5.0）
 
 - [x] `/D`、`/G`、`/V`、`/VP` 的 claim 声明 `attachments: true`，composer 才会序列化草稿附件并随 `submit` 传入；`/ok` 不声明，行为不变；
 - [x] `/D` 原样转发全部附件：图片按字节、文件按当前会话上传回执，随讨论提示词发送（附件在前、文本在后，与原生 composer 一致）；只带附件不写文字时标题仍为 `D: 新讨论`；
