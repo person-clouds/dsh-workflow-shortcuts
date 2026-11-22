@@ -1,10 +1,18 @@
 # STATUS — dsh-workflow-shortcuts
 
-- 更新时间：2026-11-21（未发布新版本）
-- 版本：`0.2.0`（GitHub Release `v0.2.0` 与 npm `0.2.0` 均已发布；`0.2.1` 被 npm 暂存未批准，已放弃）
-- 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理。
+- 更新时间：2026-11-22
+- 版本：`0.3.0`（未发布；npm 发布与 GitHub Release 待执行，发布流程见 `PUBLISHING.md`）
+- 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理，`/ok` 清除会话标题的 TODO 标记。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
+
+## 2026-11-22 最新：0.3.0 TODO 标题与 `/ok`
+
+- [x] 从 `dsh-workbench` 迁入 TODO 标题机制：Host 监听 `session/event`，助手消息末尾命中「需要你执行」隐藏标记时把会话标题改为 `TODO：<原标题>`；
+- [x] 原标题以 `/D`、`/G` 等命令前缀开头时用 `TODO <原标题>`，避免冒号二次嵌套；已带 `TODO` 前缀时幂等，子代理消息不触发；
+- [x] 新增独立输入源 `/ok`：只去掉标题开头一个 `TODO` 前缀，不改会话内容、不归档会话；无标记时提示「当前没有 TODO 标记」；
+- [x] `/D`、`/G` 的行为与提示词保持不变，`/ok` 与两者输入源互不影响；
+- [x] README.md、README.en.md、SPEC.md 同步说明；`npm test` 50/50 通过。
 
 ## 2026-11-21 最新：/D 默认提示词调整
 
@@ -83,10 +91,11 @@
 
 | # | 事项 | 说明 |
 |---|---|---|
-| 1 | 宿主机安装验收 | 执行 `bash dsh-workflow-shortcuts/scripts/apply-profile.sh web`，浏览器验证 `/D` 与 `/G` 的真实交互 |
+| 1 | 宿主机安装验收 | 执行 `bash dsh-workflow-shortcuts/scripts/apply-profile.sh web`，浏览器验证 `/D`、`/G` 与 `/ok` 的真实交互 |
 | 2 | ~~市场 PR 合并~~ | #15389 已合并；市场按 `releases/latest` 自动取到 `v0.2.0` |
 | 3 | ~~npm 发布 `0.2.0`~~ | 已发布，`latest` = `0.2.0`；`0.2.1` 被暂存未批准，已放弃 |
 | 4 | npm 占位版本清理 | `0.0.0-stage` 是 npm 首次发布时的临时占位，不影响 `latest`；后续按 npm 支持情况清理 |
+| 5 | 发布 `0.3.0` | `npm publish` + GitHub Release `v0.3.0`（资产 `dsh-workflow-shortcuts.tgz`），完成后更新市场条目 |
 
 ## 验证记录
 
@@ -120,3 +129,5 @@
 | 2026-11-20 | GitHub Release `v0.2.0` | 资产 `dsh-workflow-shortcuts.tgz` 20925 字节，`latest/download` 返回 200 |
 | 2026-11-20 | npm publish `0.2.1` | 被 npm 暂存未批准；放弃该版本，`v0.2.1` Release 已删除 |
 | 2026-11-21 | `npm test`（/D 默认提示词调整） | 28/28 通过；断言调整后的 3 条要点 |
+| 2026-11-22 | `npm test`（0.3.0 TODO 标题与 /ok） | 50/50 通过；覆盖标记识别、标题前缀、幂等、子代理忽略与 `/ok` 清除 |
+| 2026-11-22 | `client.js` `vm.Script` 解析 | 通过 |

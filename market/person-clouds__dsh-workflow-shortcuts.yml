@@ -2,6 +2,6 @@ url: https://github.com/person-clouds/dsh-workflow-shortcuts
 name: person-clouds/dsh-workflow-shortcuts
 category: workflow
 description:
-  en: 'Adds /D and /G slash commands to DSH Web: discuss and write a plan, then start a fresh session from a plan document or from free-form task text.'
-  zh: '为 DSH Web 增加 /D 与 /G 快捷命令：先讨论并落成计划文档，再按计划文档或输入文字新建处理会话。'
+  en: 'Adds /D, /G and /ok slash commands to DSH Web: discuss and write a plan, start a fresh session from a plan document or free-form task text, and clear the TODO prefix from session titles.'
+  zh: '为 DSH Web 增加 /D、/G 与 /ok 快捷命令：先讨论并落成计划文档，再按计划文档或输入文字新建处理会话，并用 /ok 清除会话标题的 TODO 标记。'
 tarball: https://github.com/person-clouds/dsh-workflow-shortcuts/releases/latest/download/dsh-workflow-shortcuts.tgz

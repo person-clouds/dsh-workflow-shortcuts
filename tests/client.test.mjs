@@ -87,6 +87,9 @@ function createHarness(options = {}) {
       return operation({
         binding: {
           session: {
+            projections: {
+              faceOf: (name) => ({ getSnapshot: () => name === 'title' ? (options.title ?? '') : undefined })
+            },
             async rename(title) {
               calls.renames.push({ id, title })
               return { ok: true, value: { title, seq: 1 } }
@@ -154,7 +157,7 @@ function createHarness(options = {}) {
     },
     createElement
   }
-  let source
+  const sources = []
   const ctx = {
     sessions,
     workspaces,
@@ -162,7 +165,7 @@ function createHarness(options = {}) {
     remote,
     get: () => ({
       registerSource(value) {
-        source = value
+        sources.push(value)
         return () => {}
       }
     }),
@@ -170,8 +173,12 @@ function createHarness(options = {}) {
   }
   const { plugin, window } = loadPlugin({ localStorage, document, window: options.window })
   plugin.apply(ctx)
-  assert.ok(source, '应注册 / 输入源')
-  return { source, calls, window }
+  // /D、/G 源与 /ok 源是两个独立输入源，测试分别取用。
+  const source = sources.find((value) => value.name === 'workflow-shortcuts')
+  const okSource = sources.find((value) => value.name === 'dsh-workflow-shortcuts-todo')
+  assert.ok(source, '应注册 /D、/G 输入源')
+  assert.ok(okSource, '应注册 /ok 输入源')
+  return { source, okSource, sources, calls, window }
 }
 
 function clickPlan(dialog, index) {
@@ -591,4 +598,40 @@ test('/G：计划模式同样追加执行附加要求，超长内容截断', asy
   assert.match(prompt, /附加要求：\n甲+/)
   assert.match(prompt, /已截断，超过 8000 字符/)
   assert.ok(prompt.length < 9000)
+})
+
+test('/ok：清除标题的 TODO 前缀且不归档会话', async () => {
+  const { okSource, calls } = createHarness({ title: 'TODO：修复登录' })
+  const outcome = await okSource.matchEnter({ sessionId: 's1' }, '/ok', undefined, { attachments: 0 })
+  const result = await outcome.claim.submit()
+  assert.equal(result.kind, 'success')
+  assert.equal(result.text, '已清除 TODO，不归档会话')
+  assert.deepEqual(calls.renames, [{ id: 's1', title: '修复登录' }])
+  assert.equal(calls.prompts.length, 0)
+  assert.equal(calls.creates.length, 0)
+})
+
+test('/ok：无 TODO 标记时不改名', async () => {
+  const { okSource, calls } = createHarness({ title: '修复登录' })
+  const outcome = okSource.matchSpace({ sessionId: 's1' }, '/ok')
+  const result = await outcome.claim.submit()
+  assert.equal(result.kind, 'success')
+  assert.equal(result.text, '当前没有 TODO 标记，不归档会话')
+  assert.equal(calls.renames.length, 0)
+})
+
+test('/ok：只匹配 /ok，不影响 /D、/G', async () => {
+  const { okSource } = createHarness()
+  assert.equal(okSource.order, 30)
+  assert.equal(okSource.matchSpace({ sessionId: 's1' }, '/D'), undefined)
+  assert.equal(await okSource.matchEnter({ sessionId: 's1' }, '/G 任务'), undefined)
+  const rows = await okSource.candidates()
+  assert.equal(JSON.stringify(rows.map((row) => row.label)), JSON.stringify(['/ok']))
+})
+
+test('/ok：TODO D: 前缀同样可清', async () => {
+  const { okSource, calls } = createHarness({ title: 'TODO D: 写计划' })
+  const claim = (await okSource.matchEnter({ sessionId: 's1' }, '/ok', undefined, { attachments: 0 })).claim
+  await claim.submit()
+  assert.equal(calls.renames[0].title, 'D: 写计划')
 })

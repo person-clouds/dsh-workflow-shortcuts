@@ -11,6 +11,7 @@ Slash commands for DSH Web that support a "discuss first, write a plan, then imp
 
 - `/D [task]`: enter discussion mode in the current session without modifying files; rename the session to `D: <task summary>`, then write the agreed solution to a `PLAN-*.md` document after the requirements settle.
 - `/G [plan path | task text]`: create a fresh session that works from a plan document or from free-form task text; leave it empty to find a recent plan automatically.
+- `/ok`: remove the `TODO` prefix from the current session title without archiving it or changing session content.
 
 The goal is to separate requirement discussion from code implementation so the implementation session does not carry the whole discussion history, reducing long-context usage.
 
@@ -22,8 +23,15 @@ The goal is to separate requirement discussion from code implementation so the i
 | `/G <plan path>` | Create a new session in the current workspace titled `G：<plan document title>` and start implementing from the plan. |
 | `/G <task text>` | Create a new session titled `G：<task summary>` and start working from the supplied text. |
 | `/G` | With no argument, search the latest N user/assistant messages for a `.md` plan: run the only match directly, show a picker for multiple matches, and create no session on cancel or no match. |
+| `/ok` | Remove a leading `TODO` prefix (`TODO：` or `TODO `) from the current session title without changing content or archiving the session. |
 
 The plan path for `/G` may be absolute or relative to the current session working directory. Bare paths, quoted/backticked paths, and Markdown links are supported. Only `.md` plan files are accepted; `http(s)` links are rejected.
+
+## TODO titles and `/ok`
+
+When an assistant reply ends with an "actions for you" section (detected via a hidden marker), the Host listens to `session/event` and renames the current session title to `TODO：<original title>`. If the original title already starts with a command prefix such as `/D` or `/G`, it becomes `TODO <original title>` to avoid a double colon. Titles already carrying a `TODO` prefix are left untouched, and subagent sessions are ignored.
+
+`/ok` removes one leading `TODO` prefix from the title only. It does not change session content and does not archive the session; when no `TODO` prefix exists it reports that there is no TODO marker.
 
 `/D` sends three short points: read `PROJECT_INDEX` and `SPEC`, and for content exploration (not a routine bugfix) discuss without changing code; after the approach is confirmed write `PLAN-*.md` following the optional Host-configured spec documents (or the current workspace/repo conventions when unconfigured); keep the plan short and executable, fix localized bugs directly with a note, and keep README/STATUS/PROJECT_INDEX up to date.
 

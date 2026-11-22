@@ -38,6 +38,15 @@ const DEFAULT_RECENT_MESSAGES = 5;
 const MIN_RECENT_MESSAGES = 1;
 const MAX_RECENT_MESSAGES = 50;
 const CONFIG_GLOBAL = "__DSH_WORKFLOW_SHORTCUTS_CONFIG__";
+
+/**
+ * 去掉标题开头的一个 TODO 前缀。
+ *
+ * 与 Host 侧 lib/todo.js 的 PREFIX 保持一致：`TODO：标题`、`TODO: 标题`、
+ * `TODO D: 标题`、`TODO G：标题` 都只去掉 `TODO` 与其后的一次分隔符。
+ */
+const TODO_PREFIX = /^TODO(?:[：:]\s*|\s+(?=[DG][：:]))/u;
+const stripTodoPrefix = (title) => String(title ?? "").replace(TODO_PREFIX, "");
 const DEFAULT_DISCUSSION_PROMPT_FILE = ".dsh/workflow-shortcuts/discussion.md";
 const DEFAULT_EXECUTION_PROMPT_FILE = ".dsh/workflow-shortcuts/execution.md";
 const MAX_PROMPT_OVERLAY_LINES = 200;
@@ -484,6 +493,42 @@ submit(key, session, args, attachments)
 };
 }
 
+/**
+ * `/ok`：只清除当前会话标题的 TODO 前缀，不归档、不改动会话内容。
+ *
+ * 标题是 session 的 projection，不在 SessionSnapshot 上；读
+ * `getSnapshot().title` 永远得到空串，必须经 `projections.faceOf("title")`。
+ */
+function okClaim(session) {
+return {
+name: "ok",
+token: "/ok ",
+submit: async () => {
+let hadTodo = false;
+try {
+await sessions.using(session.sessionId, { source: "workflowShortcuts" }, async (reference) => {
+const bindingSession = reference.binding.session;
+const title = String(bindingSession.projections.faceOf("title").getSnapshot() ?? "");
+const next = stripTodoPrefix(title);
+hadTodo = next !== title;
+if (!hadTodo) return;
+const renamed = await bindingSession.rename(next);
+if (!renamed.ok) throw remoteFailure("session.rename", renamed);
+});
+} catch (error) {
+return {
+kind: "error",
+text: `操作失败：${error instanceof Error ? error.message : String(error)}`
+};
+}
+return {
+kind: "success",
+text: hadTodo ? "已清除 TODO，不归档会话" : "当前没有 TODO 标记，不归档会话"
+};
+}
+};
+}
+
 async function submit(key, session, args, attachments = []) {
 if (attachments.length > 0) {
 return { kind: "error", text: `/${key} 不支持附件，请先把内容写入文本。` };
@@ -633,6 +678,20 @@ ctx.effect(() => {
 const unregister = inputTriggers.registerSource(source);
 return () => unregister();
 }, "workflow-shortcuts: source");
+
+// 独立的 `/ok` 输入源：不改动上面的 /D、/G 源，二者互不影响。
+ctx.effect(() => inputTriggers.registerSource({
+trigger: "/",
+name: "dsh-workflow-shortcuts-todo",
+order: 30,
+showGroupTitle: false,
+candidates: async () => [
+{ name: "ok", label: "/ok", description: "清除当前会话的 TODO 标记，不归档会话" }
+],
+matchSpace: (session, token) => token.toLowerCase() === "/ok" ? { claim: okClaim(session) } : undefined,
+matchEnter: async (session, line) => line.trim().toLowerCase() === "/ok" ? { claim: okClaim(session) } : undefined,
+onPick: (pick) => pick.candidate.name === "ok" ? { claim: okClaim(pick.session) } : undefined
+}), "workflow-shortcuts: /ok source");
 }
 
 exports.apply = apply;

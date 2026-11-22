@@ -1,8 +1,8 @@
 {
   "name": "dsh-workflow-shortcuts",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
-  "description": "DSH Web 工作流快捷命令：/D 讨论并落成计划文档；/G 按计划文档或输入文字新建会话处理。",
+  "description": "DSH Web 工作流快捷命令：/D 讨论并落成计划文档；/G 按计划文档或输入文字新建会话处理；/ok 清除会话标题的 TODO 标记；Host 侧自动为待用户操作的会话加 TODO 标题。",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js"
@@ -10,6 +10,7 @@
   "files": [
     "index.js",
     "client.js",
+    "lib",
     "cordis.patch.yml",
     "README.md",
     "README.en.md",
@@ -30,7 +31,7 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "test": "node --test tests/client.test.mjs tests/index.test.mjs"
+    "test": "node --test tests/client.test.mjs tests/index.test.mjs tests/todo.test.mjs"
   },
   "license": "MIT",
   "repository": {
