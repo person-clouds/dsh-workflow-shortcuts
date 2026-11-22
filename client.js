@@ -373,11 +373,12 @@ return String(text ?? "").replace(/(?:快照|snapshot)[：:]\s*[0-9a-f]{7,40}/gi
 /**
  * 计划核验会话提示词：只审计划，不实施；不写快照，同一计划可反复审。
  *
+ * 只带计划路径与核验重点，不粘贴计划正文或原消息摘录：计划通常很长，
+ * 粘贴既费 token，也会和「核验重点」「附加要求」重复。
  * 预算与只读同样由 context-guard 的核验态（标题 `V：`）强制。
  */
-function planVerifyPrompt(planPath, focus, sourceText, overlay = "") {
+function planVerifyPrompt(planPath, focus, overlay = "") {
 const focusText = withoutSnapshotText(focus).trim();
-const source = withoutSnapshotText(sourceText).trim();
 const overlayText = withoutSnapshotText(overlay).trim();
 const lines = [
 "只读计划核验会话：只审查计划文档本身；不实施、不改文件、不提交、不装依赖、不重启服务。",
@@ -385,7 +386,6 @@ const lines = [
 `计划文档：${planPath}`,
 ""
 ];
-if (source !== "") lines.push("原始上下文（最近消息摘录）：", source, "");
 if (focusText !== "") lines.push("核验重点：", focusText, "");
 lines.push(
 "步骤：",
@@ -482,13 +482,7 @@ if (seen.has(planPath)) continue;
 seen.add(planPath);
 if (await readablePlanPath(sessionId, planPath)) {
 const title = await readPlanTitle(sessionId, planPath);
-const text = texts[index];
-candidates.push({
-path: planPath,
-title,
-sourceIndex: index + 1,
-sourceText: text.length > 1600 ? `${text.slice(0, 1600)}…` : text
-});
+candidates.push({ path: planPath, title, sourceIndex: index + 1 });
 }
 }
 }
@@ -710,7 +704,8 @@ return { kind: "success" };
 
 /**
  * 计划核验会话：标题仍以 `V：` 开头，复用 guard 的只读与预算；
- * 空参数从最近消息里选计划，提示词不带 `快照：`，同一计划可反复审。
+ * 空参数从最近消息里选计划；提示词只带计划路径与核验重点，不粘贴计划正文或原消息，
+ * 也不带可参与去重的 `快照：<sha>` 键，同一计划可反复审。
  */
 async function startPlanVerification(sessionId, rawArgs) {
 const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
@@ -730,17 +725,11 @@ if (candidates.length === 0) {
 throw new Error(`最近 ${limit} 条消息未找到可读的 .md 计划文档。`);
 }
 if (candidates.length === 1) {
-request = {
-kind: "plan",
-planPath: candidates[0].path,
-instruction: "",
-sourceText: candidates[0].sourceText
-};
+request = { kind: "plan", planPath: candidates[0].path, instruction: "" };
 } else {
 const planPath = await choosePlan(candidates, "选择要核验的计划文档");
 if (planPath === undefined) return { kind: "success" };
-const candidate = candidates.find((item) => item.path === planPath);
-request = { kind: "plan", planPath, instruction: "", sourceText: candidate?.sourceText };
+request = { kind: "plan", planPath, instruction: "" };
 }
 }
 
@@ -759,7 +748,7 @@ await sessions.using(newSessionId, { source: "workflowShortcuts" }, async (refer
 const renamed = await reference.binding.session.rename(title);
 if (!renamed.ok) throw remoteFailure("session.rename", renamed);
 const prompted = await reference.binding.session.prompt(
-[{ type: "text", text: planVerifyPrompt(request.planPath, request.instruction, request.sourceText, overlay) }],
+[{ type: "text", text: planVerifyPrompt(request.planPath, request.instruction, overlay) }],
 "queue"
 );
 if (!prompted.ok) throw remoteFailure("session.prompt", prompted);

@@ -9,12 +9,12 @@
 ## 2026-11-22 最新：/VP 计划核验与内置技能（0.4.0）
 
 - [x] 新增 `/VP [计划文档路径 | 核验重点]`：标题 `V：计划：<计划标题>`；空参从当前会话最近 5 条消息里找可读 `.md` 计划，1 个直接使用、多个弹「选择要核验的计划文档」选择框、取消不建会话、0 个报错；显式参数必须命中计划路径，否则报用法错误；
-- [x] `/VP` 提示词引用内置 `plan-verify` 技能，**不写**可参与去重的 `快照：<sha>` 键（输入里的快照文本替换为 `快照：<已省略>`），同一计划可反复审、不被派单去重拦截；只读与预算仍由 `dsh-context-guard` 按 `V：`/`TODO：V：` 标题强制；
+- [x] `/VP` 提示词只带计划文件路径与核验重点，不粘贴计划正文或原消息摘录；引用内置 `plan-verify` 技能，**不写**可参与去重的 `快照：<sha>` 键（输入里的快照文本替换为 `快照：<已省略>`），同一计划可反复审、不被派单去重拦截；只读与预算仍由 `dsh-context-guard` 按 `V：`/`TODO：V：` 标题强制；
 - [x] 内置 `skills/change-verify/SKILL.md`（从 agent-skills 迁入，唯一源）与 `skills/plan-verify/SKILL.md`；`lib/bundled-skills.js` 解析 frontmatter，`index.js` 经 `ctx.inject(['skills'])` 注册为 `source: 'bundled'`、`provider: 'dsh-workflow-shortcuts'`；无 skills 服务或单个技能缺失时静默跳过，不阻塞插件启动；
 - [x] 同名优先级：项目 `.dsh/skills`（rank 100）> 插件运行时注册（250）> 用户 `~/.dsh/skills`（400）；运行时注册是启动快照，改 `SKILL.md` 后需重启 `dsh web`；
 - [x] `/D` 提示词新增第 4 条：交付计划前按 `plan-verify` 自检事实、反例、安全、验收可判定，未核实写「待验证」；
 - [x] `package.json` 升 `0.4.0`，description 补 `/V`、`/VP`，`files` 加 `skills`；命令集为 `/D`、`/G`、`/V`、`/VP`、`/ok`；
-- [x] `npm test` 63/63 通过：覆盖 `/VP` 显式路径、空参单选/多选/取消/无候选、非计划路径、标题、快照文本替换，技能 frontmatter 解析与注册、注册抛错不阻塞，`npm pack --dry-run` 含两个 `SKILL.md` 与 `lib/bundled-skills.js`，D 提示词四条；
+- [x] `npm test` 63/63 通过：覆盖 `/VP` 显式路径、空参单选/多选/取消/无候选、非计划路径、标题、只带路径不粘贴计划正文与原消息、快照文本替换，技能 frontmatter 解析与注册、注册抛错不阻塞，`npm pack --dry-run` 含两个 `SKILL.md` 与 `lib/bundled-skills.js`，D 提示词四条；
 - [ ] 发布 `0.4.0`：版本已准备好、尚未发布；`npm publish` 需用户执行 2FA。硬拦依赖 `@fenghoer/dsh-context-guard` ≥ `0.5.0`，本机已是 `0.5.0`，npm `latest` 目前仍为 `0.4.4`，两仓按 guard → shortcuts 顺序发布。
 
 ## 2026-11-22：/D 第 1 条去掉 SPEC
@@ -164,5 +164,5 @@
 | 2026-11-22 | `npm publish` / `npm view` | `dsh-workflow-shortcuts@0.3.1` 已发布，`latest` = `0.3.1` |
 | 2026-11-22 | GitHub Release `v0.3.1` | 资产 `dsh-workflow-shortcuts.tgz` 28165 字节，`latest/download` 返回 200，内含 `version: 0.3.1` |
 | 2026-11-22 | `npm test`（/V 核验层） | 53/53 通过；覆盖 `/V` 新会话/标题/快照提取/空参/附件拒绝/附加要求拼接 |
-| 2026-11-22 | `npm test`（0.4.0 `/VP` 与内置技能） | 63/63 通过；覆盖 `/VP` 显式路径/空参单选/多选/取消/无候选/非计划路径/标题/快照文本替换、技能解析与注册、注册抛错不阻塞、打包内容、D 提示词四条 |
+| 2026-11-22 | `npm test`（0.4.0 `/VP` 与内置技能） | 63/63 通过；覆盖 `/VP` 显式路径/空参单选/多选/取消/无候选/非计划路径/标题/只带路径不粘贴正文/快照文本替换、技能解析与注册、注册抛错不阻塞、打包内容、D 提示词四条 |
 | 2026-11-22 | `./scripts/check.sh --repo dsh-workflow-shortcuts` | 通过；4 篇文档，0 警告 |

@@ -712,20 +712,22 @@ test('/VP：显式计划路径，标题为 V：计划：，提示词不带快照
   assert.doesNotMatch(prompt, /快照：abc1234/)
 })
 
-test('/VP 空参数：唯一候选自动使用，并把原消息作为上下文且抹掉快照', async () => {
+test('/VP 空参数：唯一候选自动使用，提示词只带路径不粘贴计划正文与原消息', async () => {
   const { source, calls } = createHarness({
     entries: [userMessage('看 /repo/task/a/PLAN-a.md 快照：deadbee'), assistantMessage('好')],
-    planText: '# 唯一计划\n'
+    planText: '# 唯一计划\n\n正文很长，不应出现在提示词里\n'
   })
   const result = await source.matchSpace({ sessionId: 's1' }, '/VP').claim.submit('', {}, [])
   assert.equal(result.kind, 'success')
   assert.equal(calls.dialogs.length, 0)
   assert.equal(calls.renames[0].title, 'V：计划：唯一计划')
   const prompt = calls.prompts[0].content[0].text
-  assert.match(prompt, /原始上下文（最近消息摘录）：/)
-  assert.match(prompt, /\/repo\/task\/a\/PLAN-a\.md/)
-  assert.match(prompt, /快照：<已省略>/)
+  assert.match(prompt, /^计划文档：\/repo\/task\/a\/PLAN-a\.md$/m)
+  assert.doesNotMatch(prompt, /原始上下文/)
+  assert.doesNotMatch(prompt, /正文很长/)
+  assert.doesNotMatch(prompt, /看 \/repo/)
   assert.doesNotMatch(prompt, /deadbee/)
+  assert.doesNotMatch(prompt, /快照：/)
 })
 
 test('/VP 空参数：多个候选弹出核验选择框，选中后使用对应路径', async () => {
