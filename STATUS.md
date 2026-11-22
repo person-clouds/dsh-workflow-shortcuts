@@ -1,10 +1,18 @@
 # STATUS — dsh-workflow-shortcuts
 
-- 更新时间：2026-11-22
+- 更新时间：2026-11-23
 - 版本：`0.5.0`（命令输入支持附件；`0.4.0` 与 `0.5.0` 均未发布，`npm publish` 需用户 2FA）
 - 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理，`/V` 新建只读核验会话，`/VP` 新建只读计划核验会话，`/ok` 清除会话标题的 TODO 标记。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
+
+## 2026-11-23 最新：核验收敛为 1 会话 1 轮
+
+- [x] `change-verify`：默认一次改动只派 1 个核验会话、1 轮、报告 ≤15 行，只核 diff + 验收命令 + 计划条目、禁全仓翻查；原 L1/L2 双审与两轮封顶改为 `verify-again` 例外——仅高风险改动且派单 prompt 显式写 `verify-again` 才加 1 个会话/1 轮，并须在提交说明写理由；只读、不修、P0/P1 阻塞、证据节流与「核验记录」模板保留；
+- [x] `plan-verify`：只核计划文本内的事实与命令；本地能读到就不联网；外部资料全程 ≤1 次；不可证标「待验证」；报告正文 ≤15 行；只读与不实施边界不变；
+- [x] `README.md`、`README.en.md` 同步核验会话数、轮次、报告行数与 `verify-again` 例外，中英文语义一致；
+- [x] 配套 `personalCloud/workspace/agent-action.md` §5 追加「结论锁」「交付模式」「长任务进度」，`doc/specs/task-workflow.md` §6 加「四句话后停止取证」、§7 改为 1 个/改动、默认 1 轮；
+- [ ] 待验证：`V：` 会话实际跑一次只含 diff/验收命令/计划条目的核验，确认报告 ≤15 行且没有全仓翻查；装载旧版技能的 profile 需重启 `dsh web` 后复核。
 
 ## 2026-11-22 最新：核验技能改为手动触发（0.5.0）
 
