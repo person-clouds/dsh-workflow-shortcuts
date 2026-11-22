@@ -3,45 +3,49 @@ audience: shared
 status: current
 ---
 
-# dsh-workflow-shortcuts
-
 [中文](README.md) | [English](README.en.md)
 
-DSH Web 快捷命令，配合「先讨论、再落计划、开新会话实施」的工作流使用。
+# dsh-workflow-shortcuts
 
-- `/D [任务]`：在当前会话进入讨论阶段，不修改文件；会话名统一改为 `D: <任务摘要>`，讨论收敛后把方案写成 `PLAN-*.md`。
-- `/G [计划文档路径 | 任务描述]`：按计划文档或直接输入的文字创建一个全新的处理会话；留空时从最近消息自动查找计划文档。
-- `/ok`：清除当前会话标题的 `TODO` 前缀，不归档、不改动会话内容。
+DSH Web 工作流快捷命令：`/D` 讨论并落计划，`/G` 按计划或文字新建会话，`/ok` 清除会话标题的 TODO 标记。
 
-这样可以把需求讨论与代码实施拆到两个上下文中，避免实施会话反复携带讨论过程，降低长上下文消耗。
+## 先说最要紧的
 
-## 命令
+- `/D [任务]`：当前会话只讨论、不改文件，会话名改为 `D: <任务摘要>`，方案收敛后写 `PLAN-*.md`。
+- `/G [计划路径 | 任务]`：新建独立会话去实施；留空时从最近消息里找计划文档，命中多个让你选。
+- `/ok`：只清掉当前会话标题的 `TODO` 前缀，不改内容、不归档；用于收尾。
+- 助手回复带「需要你执行」小节时，Host 自动把会话标题标成 `TODO：<原标题>`，方便回头找没处理完的会话。
+- 只对 DSH Web 客户端生效；终端/API 仍用普通提示词。
 
-| 命令 | 作用 |
-| --- | --- |
-| `/D [任务]` | 在当前会话进入讨论阶段；会话名改为 `D: <任务摘要>`，不修改文件，收敛后把方案写成 `PLAN-*.md`。 |
-| `/G <计划路径>` | 在当前工作区创建一个全新会话，标题为「G：<计划文档标题>」，按计划文档开始实施。 |
-| `/G <任务描述>` | 按输入文字在当前工作区创建一个全新会话，标题为「G：<任务摘要>」，并开始处理该任务。 |
-| `/G` | 留空回车时从当前会话最近 N 条用户/助手消息中查找 `.md` 计划文档：命中 1 个直接执行，命中多个弹框选择，取消或未命中不创建会话。 |
-| `/ok` | 只清除当前会话标题开头的 `TODO` 前缀（`TODO：` 或 `TODO `），不修改会话内容，也不归档会话。 |
+## 最短上手
 
-`/G` 的计划路径可以是绝对路径，也可以相对当前会话工作目录；支持裸路径、引号/反引号路径和 Markdown 链接，计划文件只接受 `.md`，`http(s)` 链接会被拒绝。
+```bash
+dsh plugin --profile web add dsh-workflow-shortcuts
+```
 
-## TODO 标题与 `/ok`
+重启 `dsh web` 或刷新页面，在输入框依次使用：
 
-当助手回复末尾带有「需要你执行」小节（由隐藏标记识别）时，Host 监听 `session/event`，把当前会话标题改为 `TODO：<原标题>`；原标题本身以 `/D`、`/G` 等命令前缀开头时改用 `TODO <原标题>`，避免冒号二次嵌套。已带 `TODO` 前缀的标题不会重复添加，子代理会话的消息不触发。
+```text
+/D 把需求先讨论清楚
+/G /home/zh/www/doc/plans/PLAN-foo.md
+/ok
+```
 
-`/ok` 只去掉标题开头的一个 `TODO` 前缀，不修改会话内容、不归档会话；没有 `TODO` 标记时提示「当前没有 TODO 标记」。清除后标题恢复为加前缀前的文字。
+安装脚本、GitHub Release tarball、本地 link 三种方式见 [`PUBLISHING.md`](/home/zh/www/dsh-workflow-shortcuts/PUBLISHING.md)。
 
-`/D` 提示词固定为 3 条短要点：读 `PROJECT_INDEX` 与 `SPEC`，内容探索（不是既定流程的 bugfix）只讨论、不直接动手；方案确认后写 `PLAN-*.md`，具体规范文档路径来自可选的 Host 配置（未配置时按当前工作区/仓库既有规范执行）；计划简短可执行，已定位的 bugfix 直接做并说明，维护好 README/STATUS/PROJECT_INDEX。
+## 功能
 
-内置提示词之外，可以把自己的要求写进工作区文件追加到提示词，不必改插件代码，见下方「提示词附加要求」。
+1. **`/D` 讨论**：发送固定的 3 条提示词，要求先读 `PROJECT_INDEX`/`SPEC`、只讨论不改文件、方案确认后写计划；会话名改为 `D: <任务摘要>`，空任务用 `D: 新讨论`。
+2. **`/G` 计划模式**：输入带目录的 `.md` 路径，或文件名以 `PLAN-`/`plan-` 开头，按计划文档处理；仍可追加补充要求，例如 `/G task/foo/PLAN-foo.md 只改后端并补测试`。
+3. **`/G` 文字模式**：其余非空输入当作独立任务，新建会话并发送执行提示词。
+4. **`/G` 空参**：从当前会话最近 N 条用户/助手消息中查找可读 `.md` 计划；命中 1 个直接执行，多个弹框选择，取消或未命中不建会话。N 可用浏览器 `localStorage` 的 `dsh-workflow-shortcuts.recentMessages` 调整（默认 5，范围 1–50）。
+5. **会话标题**：计划模式新会话标题取计划文档开头 40 行的 H1（无 H1 取 H2，忽略代码围栏），去掉 `PLAN`/`计划` 前缀与连续分隔符后拼成「G：<标题>」；读取失败回退文件名。
+6. **TODO 标题与 `/ok`**：助手消息命中「需要你执行」隐藏标记时，Host 监听 `session/event` 把当前会话标题改为 `TODO：<原标题>`（原标题以 `/D`、`/G` 等命令前缀开头时用 `TODO <原标题>`）；已带前缀幂等，子代理消息不触发。`/ok` 只去掉开头一个前缀，不归档；没有标记时提示「当前没有 TODO 标记」。
+7. **提示词附加要求**：默认读取当前会话工作目录下 `.dsh/workflow-shortcuts/discussion.md`（追加到 `/D`）和 `.dsh/workflow-shortcuts/execution.md`（追加到 `/G`）；只改文件，下次输入即生效。
 
-计划模式识别规则：输入中包含带目录的 `.md` 路径，或文件名以 `PLAN-`/`plan-` 开头时，按计划文档处理；其余非空输入按任务文字处理。计划路径后可以继续追加补充要求，例如 `/G task/foo/PLAN-foo.md 只改后端并补测试`。
+## 配置
 
-## `/D` 规范文档配置
-
-`/D` 不再在代码中硬编码计划目录、frontmatter、H1 与 `## 改动记录` 等规范，而是在提交时读取 DSH Host 注入的配置。三项均可省略，值为规范文档的绝对路径；空值、空白或非字符串按未配置处理：
+三项规范文档路径与两个附加要求文件都可省略；空值按未配置处理：
 
 ```yaml
 - id: dsh-workflow-shortcuts
@@ -50,107 +54,25 @@ DSH Web 快捷命令，配合「先讨论、再落计划、开新会话实施」
     workflowDoc: /home/zh/www/doc/specs/task-workflow.md
     planDoc: /home/zh/www/doc/specs/documentation-rules.md
     planTemplate: ""
-```
-
-- `workflowDoc`：工作流/授权规范；
-- `planDoc`：计划文档规范；
-- `planTemplate`：计划模板。
-
-只把已配置项列入 `/D` 第 2 条；三项都未配置时，仅要求「按当前工作区/仓库既有规范写 PLAN-*.md。」。修改配置后需让 DSH 重新加载 Host 配置并刷新页面；Client 每次 `/D` 提交时读取当前值，不再缓存。该配置只影响之后发出的 `/D` 提示词，不改变已有会话或 `/G` 行为。
-
-## 提示词附加要求
-
-内置提示词保持不变，但每次提交时可以追加自己的要求。默认读取当前会话工作目录下的两个文件：
-
-| 文件 | 作用 |
-| --- | --- |
-| `.dsh/workflow-shortcuts/discussion.md` | 追加到 `/D` 讨论提示词 |
-| `.dsh/workflow-shortcuts/execution.md` | 追加到 `/G` 执行提示词（计划模式与文字模式都生效） |
-
-只改文件，下一次 `/D`、`/G` 即生效，不用重启 DSH 或刷新页面。文件不存在、不可读或内容为空时静默跳过；只读取前 200 行，超过 8000 字符会截断并注明。内容以「附加要求：」段落追加：`/D` 放在 `任务：` 之前，`/G` 放在提示词最后。
-
-路径可通过 Host 配置修改，相对路径基于当前会话工作目录：
-
-```yaml
-- id: dsh-workflow-shortcuts
-  name: dsh-workflow-shortcuts
-  config:
-    discussionPromptFile: /home/zh/www/prompts/discussion.md
+    discussionPromptFile: .dsh/workflow-shortcuts/discussion.md
     executionPromptFile: .dsh/workflow-shortcuts/execution.md
 ```
 
-默认值分别为 `.dsh/workflow-shortcuts/discussion.md` 和 `.dsh/workflow-shortcuts/execution.md`；设为 `none`（或 `off`、`-`）关闭对应附加要求。配置改动仍需重新加载 Host 配置并刷新页面，文件内容则每次提交实时读取。
+- `workflowDoc` / `planDoc` / `planTemplate`：只把已配置项写进 `/D` 第 2 条；三项全空时只要求「按当前工作区/仓库既有规范写 PLAN-*.md」。
+- `discussionPromptFile` / `executionPromptFile`：相对路径基于当前会话工作目录，`none`/`off`/`-` 关闭；每次提交读取前 200 行，超过 8000 字符截断并注明。
+- 改配置需重新加载 Host 配置并刷新页面；改附加要求文件内容不需要重启。
 
-空 `/G` 的搜索条数可通过浏览器 `localStorage` 配置：key 为 `dsh-workflow-shortcuts.recentMessages`，默认 `5`，合法范围 `1–50`，非法值回退 `5`。只读取 `user/message` 与 `assistant/message`，并从新到旧查找。
+## 边界与限制
 
-计划模式的会话标题读取计划文档开头 40 行：优先第一个 H1，没有 H1 时取第一个 H2，忽略代码围栏内的标题；开头 `PLAN` / `计划` 前缀（大小写不敏感）及其后的连续分隔符（空白、`：`、`:`、`、`、`·`、`｜`、`|`、`—`、`–`、`-`、`_`）会被去掉，`Planning` 等普通单词不受影响。读取失败、没有标题或清洗后为空时回退为计划文件名，不中断建会话。
-
-## 安装
-
-从 npm 安装：
-
-```bash
-dsh plugin --profile web add dsh-workflow-shortcuts
-```
-
-也可以从 GitHub Release 的预构建 tarball 安装：
-
-```bash
-dsh plugin --profile web add https://github.com/person-clouds/dsh-workflow-shortcuts/releases/latest/download/dsh-workflow-shortcuts.tgz
-```
-
-开发目录可用本地链接安装：
-
-```bash
-dsh plugin --profile web add link:/path/to/dsh-workflow-shortcuts
-```
-
-重启 `dsh-web.service` 后刷新页面。只有 Client 代码，通常刷新页面即可生效。
-
-如果当前 AI 沙箱对 `~/.dsh` 只读，请在宿主机执行安装脚本：
-
-```bash
-bash dsh-workflow-shortcuts/scripts/apply-profile.sh web
-```
-
-脚本会：建立本地软链并登记 `package.json` 依赖、备份并插入 `cordis.patch.yml`、重启 `dsh-web.service`（若存在）。
-
-## 使用
-
-1. 在当前会话输入 `/D`，选择「讨论」后输入任务描述并回车。
-2. Agent 先讨论澄清（只调查、不改文件，并确认目标仓与写权限）；方案确认后按计划规范生成计划文档，并在回复末尾输出 Markdown 链接：显示名用相对工作区根的路径，地址用绝对全路径，例如 `[personalCloud/task/foo/PLAN-foo.md](/home/zh/www/personalCloud/task/foo/PLAN-foo.md)`。
-3. 直接输入 `/G <计划路径>`、`/G <任务描述>`，或留空输入 `/G` 自动查找最近计划；插件会创建新会话、重命名并发送对应的执行提示词。
-
-`/G` 会把当前会话的工作目录作为新会话的工作区；工作区未登记时会自动登记。执行提示词固定为 3 条短要点：先读工作区 `AGENTS.md`；计划模式直接按计划文档执行、文字模式按 `任务：` 实施；完成后按 `AGENTS.md` 验证并收尾。
-
-## 安全边界
-
-- 只注册 Client 侧 `/` 输入源，不新增公网端口、不新增 Host API。
-- `/D` 发送讨论提示词；Agent 先只读调研并确认目标仓/写权限，方案确认前不改文件；简单且改动位置明确的功能点可按提示直接顺手完成，并同步 README、STATUS、PROJECT_INDEX（存在时）等文档与状态；复杂改动仍先出计划并等待确认。
-- `/G` 只解析输入并构造提示词；计划模式仅读取计划文档开头 40 行用于生成标题，读取失败时回退文件名；空 `/G` 会用 `remote.workspaceFiles.read` 校验候选是否可读，但不校验计划内容。
+- 只注册 Client 侧 `/` 输入源，不新增公网端口、不新增 Host API（0.3.0 起 Host 只监听 `session/event` 改标题）。
+- `/D` 只发讨论提示词，不改文件；`/G` 只解析输入并构造提示词，计划模式仅读计划文档开头 40 行做标题，空 `/G` 校验候选可读性。
 - 不读取凭据、不访问网络资源、不注入 HTML。
+- 会话依赖 DSH Client 的 `inputTriggers`、`sessions`、`workspaces`、`uiWorkspace`、`remote.workspaceFiles` 服务；DSH 升级后接口变化需要同步适配。
 
-## 限制
+## 去哪看
 
-- `/D`、`/G` 仅对 DSH Web 客户端生效；终端/API 仍用普通提示词或 Host 命令。
-- `/G` 复用当前会话所在工作区；当前目录未登记为工作区时会先自动登记。
-- 文字模式只依据 `/G` 后的输入创建任务上下文，不会自动携带当前会话的讨论历史。
-- 插件依赖 DSH Client 的 `inputTriggers`、`sessions`、`workspaces`、`uiWorkspace`、`remote.workspaceFiles` 服务；DSH 升级后若接口变化需要同步适配。
-
-## 开发与测试
-
-```bash
-npm test
-node -e "new (require('vm').Script)(require('fs').readFileSync('client.js','utf8'))"
-npm pack --dry-run
-```
-
-测试使用 Node 内置 `node:test` 和 `vm`；Client 测试不依赖浏览器或外部服务，Host 测试用最小 schema stub 验证配置默认值、清洗与全局注入。
-
-## 发布
-
-见 [PUBLISHING.md](PUBLISHING.md)。市场条目草稿见 [market/person-clouds__dsh-workflow-shortcuts.yml](market/person-clouds__dsh-workflow-shortcuts.yml)。
-
-## 许可证
-
-[MIT](LICENSE)
+- 状态与验收命令：[STATUS.md](/home/zh/www/dsh-workflow-shortcuts/STATUS.md)
+- 目标、范围与接口：[SPEC.md](/home/zh/www/dsh-workflow-shortcuts/SPEC.md)
+- 发布与市场 PR：[PUBLISHING.md](/home/zh/www/dsh-workflow-shortcuts/PUBLISHING.md)
+- 市场条目：[market/person-clouds__dsh-workflow-shortcuts.yml](/home/zh/www/dsh-workflow-shortcuts/market/person-clouds__dsh-workflow-shortcuts.yml)
+- 许可证：[MIT](LICENSE)

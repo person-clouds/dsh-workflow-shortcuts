@@ -1,12 +1,12 @@
 # STATUS — dsh-workflow-shortcuts
 
 - 更新时间：2026-11-22
-- 版本：`0.3.0`（npm `0.3.0` 与 GitHub Release `v0.3.0` 已于 2026-11-22 发布；`latest` 资产 `dsh-workflow-shortcuts.tgz` 31778 字节）
+- 版本：`0.3.1`（文档与文案修订；`0.3.0` 的 npm 包含 `session/event` 与 `/ok`，`0.3.1` 发布后 `latest` 可查）
 - 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理，`/ok` 清除会话标题的 TODO 标记。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
 
-## 2026-11-22 最新：0.3.0 TODO 标题与 `/ok`
+## 2026-11-22 最新：TODO 标题与 `/ok`（0.3.0 起）
 
 - [x] 从 `dsh-workbench` 迁入 TODO 标题机制：Host 监听 `session/event`，助手消息末尾命中「需要你执行」隐藏标记时把会话标题改为 `TODO：<原标题>`；
 - [x] 原标题以 `/D`、`/G` 等命令前缀开头时用 `TODO <原标题>`，避免冒号二次嵌套；已带 `TODO` 前缀时幂等，子代理消息不触发；

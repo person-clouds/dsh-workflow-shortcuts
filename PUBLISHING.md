@@ -1,7 +1,7 @@
 # 发布到 DSH 插件市场
 
-> 状态：**GitHub Release `v0.2.0` 与 npm `dsh-workflow-shortcuts@0.2.0` 均已发布；awesome-dsh-plugin PR #15389 已合并。**
-> 包名：`dsh-workflow-shortcuts`（npm 最新 `0.2.0`）
+> 状态：**npm `dsh-workflow-shortcuts@0.3.1` 与 GitHub Release `v0.3.1` 待发布；`0.3.0` 已发布。**
+> 包名：`dsh-workflow-shortcuts`（npm 最新 `0.3.1`）
 > 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 > 市场条目：`market/person-clouds__dsh-workflow-shortcuts.yml`
 
@@ -44,9 +44,9 @@ npm publish --registry=https://registry.npmjs.org --access public
 dsh plugin --profile web add dsh-workflow-shortcuts
 ```
 
-## 四、创建 GitHub Release（已完成）
+## 四、创建 GitHub Release
 
-- tag：`v0.2.0`（`0.2.1` 曾尝试但因 npm 暂存未批准而放弃，Release 已删除）
+- tag：当前 `v0.3.1`（历史：`v0.2.0` 已发布；`0.2.1` 曾因 npm 暂存未批准放弃）
 - 上传 tarball 时把文件改名为无版本号的 `dsh-workflow-shortcuts.tgz`
 - Release 资源名保持无版本号，避免 `releases/latest/download/` 链接在下一版后 404
 
@@ -54,7 +54,7 @@ dsh plugin --profile web add dsh-workflow-shortcuts
 
 ```bash
 npm_config_cache=/tmp/npm-cache npm pack --pack-destination release
-mv release/dsh-workflow-shortcuts-0.2.0.tgz release/dsh-workflow-shortcuts.tgz
+mv release/dsh-workflow-shortcuts-0.3.1.tgz release/dsh-workflow-shortcuts.tgz
 ```
 
 ## 五、提交 DSH 插件市场（PR #15389 已合并）

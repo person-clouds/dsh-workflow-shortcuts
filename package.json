@@ -1,8 +1,8 @@
 {
   "name": "dsh-workflow-shortcuts",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
-  "description": "DSH Web 工作流快捷命令：/D 讨论并落成计划文档；/G 按计划文档或输入文字新建会话处理；/ok 清除会话标题的 TODO 标记；Host 侧自动为待用户操作的会话加 TODO 标题。",
+  "description": "DSH Web 工作流快捷命令：/D 讨论并落计划，/G 按计划或文字新建会话，/ok 清除会话标题的 TODO 标记。",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js"
@@ -48,6 +48,7 @@
     "workflow",
     "slash-command",
     "plan",
+    "todo",
     "session"
   ],
   "peerDependencies": {
