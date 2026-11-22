@@ -1,7 +1,7 @@
 # STATUS — dsh-workflow-shortcuts
 
 - 更新时间：2026-11-22
-- 版本：`0.3.0`（未发布；npm 发布与 GitHub Release 待执行，发布流程见 `PUBLISHING.md`）
+- 版本：`0.3.0`（npm `0.3.0` 与 GitHub Release `v0.3.0` 已于 2026-11-22 发布；`latest` 资产 `dsh-workflow-shortcuts.tgz` 31778 字节）
 - 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理，`/ok` 清除会话标题的 TODO 标记。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
@@ -95,7 +95,7 @@
 | 2 | ~~市场 PR 合并~~ | #15389 已合并；市场按 `releases/latest` 自动取到 `v0.2.0` |
 | 3 | ~~npm 发布 `0.2.0`~~ | 已发布，`latest` = `0.2.0`；`0.2.1` 被暂存未批准，已放弃 |
 | 4 | npm 占位版本清理 | `0.0.0-stage` 是 npm 首次发布时的临时占位，不影响 `latest`；后续按 npm 支持情况清理 |
-| 5 | 发布 `0.3.0` | `npm publish` + GitHub Release `v0.3.0`（资产 `dsh-workflow-shortcuts.tgz`），完成后更新市场条目 |
+| 5 | ~~发布 `0.3.0`~~ | npm `0.3.0` 与 GitHub Release `v0.3.0` 已发布；市场条目描述已同步 |
 
 ## 验证记录
 
@@ -131,3 +131,5 @@
 | 2026-11-21 | `npm test`（/D 默认提示词调整） | 28/28 通过；断言调整后的 3 条要点 |
 | 2026-11-22 | `npm test`（0.3.0 TODO 标题与 /ok） | 50/50 通过；覆盖标记识别、标题前缀、幂等、子代理忽略与 `/ok` 清除 |
 | 2026-11-22 | `client.js` `vm.Script` 解析 | 通过 |
+| 2026-11-22 | `npm publish` / `npm view` | `dsh-workflow-shortcuts@0.3.0` 已发布，`latest` = `0.3.0` |
+| 2026-11-22 | GitHub Release `v0.3.0` | 资产 `dsh-workflow-shortcuts.tgz` 31778 字节，`latest/download` 返回 200 |
