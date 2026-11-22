@@ -645,7 +645,7 @@ test('/ok：TODO D: 前缀同样可清', async () => {
   assert.equal(calls.renames[0].title, 'D: 写计划')
 })
 
-test('/V：新建只读核验会话，标题带 V：前缀并注入快照与两轮封顶', async () => {
+test('/V：新建只读核验会话，标题带 V：前缀并注入快照与默认 1 轮', async () => {
   const { source, calls } = createHarness()
   assert.equal(JSON.stringify(source.lexicon({ sessionId: 's1' })), JSON.stringify(['D', 'G', 'V', 'VP']))
   const outcome = source.matchEnter({ sessionId: 's1' }, '/V 核验 guard 改动', undefined, { attachments: 0 })
@@ -660,7 +660,8 @@ test('/V：新建只读核验会话，标题带 V：前缀并注入快照与两�
   const prompt = calls.prompts[0].content[0].text
   assert.match(prompt, /只读核验会话/)
   assert.match(prompt, /^快照：abc1234$/m)
-  assert.match(prompt, /最多两轮/)
+  assert.match(prompt, /默认 1 轮/)
+  assert.match(prompt, /verify-again/)
   assert.match(prompt, /只报告，不改代码/)
   assert.match(prompt, /需要你执行/)
   assert.doesNotMatch(prompt, /最多 25 次|25 次|40 次/)
@@ -712,7 +713,8 @@ test('/VP：显式计划路径，标题为 V：计划：，提示词不带快照
   assert.doesNotMatch(prompt, /\\n/)
   assert.match(prompt, /^核验重点：$/m)
   assert.match(prompt, /plan-verify/)
-  assert.match(prompt, /最多两轮/)
+  assert.match(prompt, /默认 1 轮/)
+  assert.match(prompt, /verify-again/)
   assert.match(prompt, /需要你执行/)
   assert.match(prompt, /快照：<已省略>/)
   assert.doesNotMatch(prompt, /快照：abc1234/)
