@@ -95,7 +95,7 @@
 | 2 | ~~市场 PR 合并~~ | #15389 已合并；市场按 `releases/latest` 自动取到 `v0.2.0` |
 | 3 | ~~npm 发布 `0.2.0`~~ | 已发布，`latest` = `0.2.0`；`0.2.1` 被暂存未批准，已放弃 |
 | 4 | npm 占位版本清理 | `0.0.0-stage` 是 npm 首次发布时的临时占位，不影响 `latest`；后续按 npm 支持情况清理 |
-| 5 | ~~发布 `0.3.0`~~ | npm `0.3.0` 与 GitHub Release `v0.3.0` 已发布；市场条目描述已同步 |
+| 5 | ~~发布 `0.3.0`~~ | npm `0.3.0` 与 GitHub Release `v0.3.0` 已发布；市场条目描述已同步 | 2026-11-22 补 `0.3.1`（文档修订）并同步市场描述。
 
 ## 验证记录
 
@@ -133,3 +133,6 @@
 | 2026-11-22 | `client.js` `vm.Script` 解析 | 通过 |
 | 2026-11-22 | `npm publish` / `npm view` | `dsh-workflow-shortcuts@0.3.0` 已发布，`latest` = `0.3.0` |
 | 2026-11-22 | GitHub Release `v0.3.0` | 资产 `dsh-workflow-shortcuts.tgz` 31778 字节，`latest/download` 返回 200 |
+| 2026-11-22 | `npm test`（0.3.1 文档与描述修订） | 50/50 通过 |
+| 2026-11-22 | `npm publish` / `npm view` | `dsh-workflow-shortcuts@0.3.1` 已发布，`latest` = `0.3.1` |
+| 2026-11-22 | GitHub Release `v0.3.1` | 资产 `dsh-workflow-shortcuts.tgz` 28165 字节，`latest/download` 返回 200，内含 `version: 0.3.1` |
