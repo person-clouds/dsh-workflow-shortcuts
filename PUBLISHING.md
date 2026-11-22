@@ -38,7 +38,7 @@ npm login --registry=https://registry.npmjs.org
 npm publish --registry=https://registry.npmjs.org --access public
 ```
 
-> 本机默认 registry 是华为云镜像（`https://repo.huaweicloud.com/repository/npm/`），裸 `npm publish` 会发到镜像并报错；必须带 `--registry=https://registry.npmjs.org`。`package.json` 已加 `publishConfig.registry` 兜底，但登录仍要显式指定 npmjs。
+> 本机默认 registry 是华为云镜像（`https://repo.huaweicloud.com/repository/npm/`），发布必须显式 `--registry=https://registry.npmjs.org`；token 在 `~/.npmrc`；`npm view` 有 3–5 分钟传播延迟。完整流程与约束见 [doc/specs/npm-publishing.md](/home/zh/www/doc/specs/npm-publishing.md)，`package.json` 已设 `publishConfig.registry` 兜底。
 
 安装验证：
 
