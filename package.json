@@ -3,7 +3,7 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org"
   },
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "description": "DSH Web 工作流快捷命令：/D 讨论并落计划，/G 按计划或文字新建会话，/V 核验执行结果，/VP 审查计划，/ok 清除 TODO 标记。",
   "exports": {

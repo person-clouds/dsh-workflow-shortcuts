@@ -575,6 +575,8 @@ return {
 name: command.name,
 token: `/${key} `,
 hint: command.hint,
+// 声明支持附件：composer 才会序列化草稿附件并随 submit 传入。
+attachments: true,
 submit: (args, _actx, attachments) =>
 submit(key, session, args, attachments)
 };
@@ -617,8 +619,10 @@ text: hadTodo ? "已清除 TODO，不归档会话" : "当前没有 TODO 标记�
 }
 
 async function submit(key, session, args, attachments = []) {
-if (attachments.length > 0) {
-return { kind: "error", text: `/${key} 不支持附件，请先把内容写入文本。` };
+// 文件回执只在接收它的会话内有效，新建会话拿不到，因此 /G、/V、/VP 只收图片。
+const images = attachments.filter((attachment) => attachment?.type === "image");
+if (key !== "D" && images.length !== attachments.length) {
+return { kind: "error", text: fileAttachmentNotice(key) };
 }
 try {
 if (key === "D") {
@@ -626,15 +630,25 @@ const cwd = sessions.list.getSnapshot().byId[session.sessionId]?.cwd;
 const config = workflowConfig();
 const file = resolveOverlayFile(config.discussionPromptFile, DEFAULT_DISCUSSION_PROMPT_FILE);
 const overlay = await promptOverlay(session.sessionId, cwd, file);
-await sendPrompt(session.sessionId, discussionPrompt(args, overlay), discussionTitle(args));
+await sendPrompt(
+session.sessionId,
+discussionPrompt(args, overlay),
+discussionTitle(args),
+attachments
+);
 return { kind: "success" };
 }
-if (key === "V") return await startVerification(session.sessionId, args);
-if (key === "VP") return await startPlanVerification(session.sessionId, args);
-return await startExecution(session.sessionId, args);
+if (key === "V") return await startVerification(session.sessionId, args, images);
+if (key === "VP") return await startPlanVerification(session.sessionId, args, images);
+return await startExecution(session.sessionId, args, images);
 } catch (error) {
 return errorOutcome(error);
 }
+}
+
+/** /G、/V、/VP 拒绝文件附件时的统一说明。 */
+function fileAttachmentNotice(key) {
+return `/${key} 暂不支持文件附件（文件回执只对当前会话有效），请把文件路径写入任务或计划，或改用 /D 在当前会话带文件；图片附件可以直接带。`;
 }
 
 /** 讨论会话统一加 `D: ` 前缀，便于和 `/G` 的 G：会话区分。 */
@@ -644,21 +658,26 @@ const summary = text === "" ? "新讨论" : summarizeTitle(text);
 return `D: ${summary}`;
 }
 
-async function sendPrompt(sessionId, text, title) {
+/** 与原生 composer 一致：附件在前，文本在后。 */
+function promptParts(text, attachments = []) {
+return [...attachments, { type: "text", text }];
+}
+
+async function sendPrompt(sessionId, text, title, attachments = []) {
 await sessions.using(sessionId, { source: "workflowShortcuts" }, async (reference) => {
 if (title !== undefined) {
 const renamed = await reference.binding.session.rename(title);
 if (!renamed.ok) throw remoteFailure("session.rename", renamed);
 }
 const result = await reference.binding.session.prompt(
-[{ type: "text", text }],
+promptParts(text, attachments),
 "queue"
 );
 if (!result.ok) throw remoteFailure("session.prompt", result);
 });
 }
 
-async function startExecution(sessionId, rawArgs) {
+async function startExecution(sessionId, rawArgs, images = []) {
 const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
 if (!cwd) throw new Error("无法确定当前会话的工作目录，/G 已取消。");
 const text = String(rawArgs).trim();
@@ -692,7 +711,7 @@ await sessions.using(newSessionId, { source: "workflowShortcuts" }, async (refer
 const renamed = await reference.binding.session.rename(title);
 if (!renamed.ok) throw remoteFailure("session.rename", renamed);
 const prompted = await reference.binding.session.prompt(
-[{ type: "text", text: executionPrompt(cwd, request, overlay) }],
+promptParts(executionPrompt(cwd, request, overlay), images),
 "queue"
 );
 if (!prompted.ok) throw remoteFailure("session.prompt", prompted);
@@ -707,7 +726,7 @@ return { kind: "success" };
  * 空参数从最近消息里选计划；提示词只带计划路径与核验重点，不粘贴计划正文或原消息，
  * 也不带可参与去重的 `快照：<sha>` 键，同一计划可反复审。
  */
-async function startPlanVerification(sessionId, rawArgs) {
+async function startPlanVerification(sessionId, rawArgs, images = []) {
 const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
 if (!cwd) throw new Error("无法确定当前会话的工作目录，/VP 已取消。");
 const text = String(rawArgs).trim();
@@ -748,7 +767,7 @@ await sessions.using(newSessionId, { source: "workflowShortcuts" }, async (refer
 const renamed = await reference.binding.session.rename(title);
 if (!renamed.ok) throw remoteFailure("session.rename", renamed);
 const prompted = await reference.binding.session.prompt(
-[{ type: "text", text: planVerifyPrompt(request.planPath, request.instruction, overlay) }],
+promptParts(planVerifyPrompt(request.planPath, request.instruction, overlay), images),
 "queue"
 );
 if (!prompted.ok) throw remoteFailure("session.prompt", prompted);
@@ -759,7 +778,7 @@ return { kind: "success" };
 }
 
 /** 核验会话：标题 `V：…`，context-guard 据此切只读与核验预算。 */
-async function startVerification(sessionId, rawArgs) {
+async function startVerification(sessionId, rawArgs, images = []) {
 const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
 if (!cwd) throw new Error("无法确定当前会话的工作目录，/V 已取消。");
 const text = String(rawArgs).trim();
@@ -779,7 +798,7 @@ await sessions.using(newSessionId, { source: "workflowShortcuts" }, async (refer
 const renamed = await reference.binding.session.rename(title);
 if (!renamed.ok) throw remoteFailure("session.rename", renamed);
 const prompted = await reference.binding.session.prompt(
-[{ type: "text", text: verifyPrompt(snapshot, scope, overlay) }],
+promptParts(verifyPrompt(snapshot, scope, overlay), images),
 "queue"
 );
 if (!prompted.ok) throw remoteFailure("session.prompt", prompted);
@@ -832,15 +851,12 @@ matchSpace(session, token) {
 const key = keyOfToken(token);
 return key === undefined ? undefined : { claim: claimFor(key, session) };
 },
-matchEnter(session, line, _signal, envelope) {
+matchEnter(session, line) {
 const trimmed = line.trim();
 const ws = trimmed.search(/\s/);
 const token = ws === -1 ? trimmed : trimmed.slice(0, ws);
 const key = keyOfToken(token);
 if (key === undefined) return undefined;
-if (envelope.attachments > 0) {
-throw new Error(`/${key} 不支持附件，请先把内容写入文本。`);
-}
 return { claim: claimFor(key, session) };
 },
 matchClaim(session, token) {

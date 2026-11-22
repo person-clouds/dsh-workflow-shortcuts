@@ -78,6 +78,10 @@ function toolMessage(text) {
   return { type: 'tool/message', data: { message: { content: [{ type: 'text', text }] } } }
 }
 
+// composer 序列化后随 submit 传入的附件形状，与 PromptContentPart 同形。
+const IMAGE = { type: 'image', mediaType: 'image/png', data: 'iVBORw0KGgo=', name: 'shot.png' }
+const FILE = { type: 'file', receiptId: 'receipt-1' }
+
 function createHarness(options = {}) {
   const calls = { prompts: [], renames: [], creates: [], opened: [], reads: [], dialogs: [] }
   const entries = options.entries ?? []
@@ -662,14 +666,16 @@ test('/V：新建只读核验会话，标题带 V：前缀并注入快照与两�
   assert.doesNotMatch(prompt, /最多 25 次|25 次|40 次/)
 })
 
-test('/V：空参数使用「核验改动」标题，附件直接报错', async () => {
+test('/V：空参数使用「核验改动」标题，文件附件直接报错', async () => {
   const { source, calls } = createHarness()
   const empty = await source.matchSpace({ sessionId: 's1' }, '/V').claim.submit('   ', {}, [])
   assert.equal(empty.kind, 'success')
   assert.equal(calls.renames[0].title, 'V：核验改动')
-  const withAttachment = await source.matchSpace({ sessionId: 's1' }, '/V').claim.submit('看下', {}, [{ name: 'a.txt' }])
+  const withAttachment = await source.matchSpace({ sessionId: 's1' }, '/V')
+    .claim.submit('看下', {}, [{ type: 'file', receiptId: 'receipt-1' }])
   assert.equal(withAttachment.kind, 'error')
-  assert.match(withAttachment.text, /不支持附件/)
+  assert.match(withAttachment.text, /^\/V 暂不支持文件附件/)
+  assert.equal(calls.creates.length, 1)
 })
 
 test('/V：配置 verifyPromptFile 时把附加要求拼进提示词', async () => {
@@ -780,4 +786,110 @@ test('/VP：不是计划路径时报错，不创建会话', async () => {
   assert.equal(result.kind, 'error')
   assert.match(result.text, /未找到 \.md 计划文档路径/)
   assert.equal(calls.creates.length, 0)
+})
+
+test('附件：/D、/G、/V、/VP 声明 attachments，/ok 不声明', async () => {
+  const { source, okSource } = createHarness()
+  for (const token of ['/D 任务', '/G 任务', '/V 核验', '/VP 计划']) {
+    const outcome = source.matchEnter({ sessionId: 's1' }, token, undefined, { attachments: 2 })
+    assert.equal(outcome.claim.attachments, true, token)
+  }
+  const ok = await okSource.matchEnter({ sessionId: 's1' }, '/ok', undefined, { attachments: 0 })
+  assert.equal(ok.claim.attachments, undefined)
+})
+
+test('/D：图片与文件按原顺序随讨论提示词发送，文本在最后', async () => {
+  const { source, calls } = createHarness()
+  const outcome = source.matchEnter({ sessionId: 's1' }, '/D 看下附件', undefined, { attachments: 2 })
+  assert.equal(outcome.claim.attachments, true)
+  const result = await outcome.claim.submit('看下附件', {}, [IMAGE, FILE])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.renames[0].title, 'D: 看下附件')
+  assert.equal(calls.prompts.length, 1)
+  const content = calls.prompts[0].content
+  assert.equal(content.length, 3)
+  assert.equal(JSON.stringify(content[0]), JSON.stringify(IMAGE))
+  assert.equal(JSON.stringify(content[1]), JSON.stringify(FILE))
+  assert.equal(content[2].type, 'text')
+  assert.match(content[2].text, /^任务：\n看下附件$/m)
+})
+
+test('/D：仅附件不写文字时标题为 D: 新讨论，附件照常发送', async () => {
+  const { source, calls } = createHarness()
+  const result = await source.matchSpace({ sessionId: 's1' }, '/D').claim.submit('', {}, [IMAGE])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.renames[0].title, 'D: 新讨论')
+  const content = calls.prompts[0].content
+  assert.equal(content.length, 2)
+  assert.equal(JSON.stringify(content[0]), JSON.stringify(IMAGE))
+  assert.equal(content[1].type, 'text')
+  assert.match(content[1].text, /我还没想清楚/)
+})
+
+test('/G：图片附件随新会话首条消息发送，标题不变', async () => {
+  const { source, calls } = createHarness()
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('修复登录', {}, [IMAGE])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.renames[0].title, 'G：修复登录')
+  const content = calls.prompts[0].content
+  assert.equal(content.length, 2)
+  assert.equal(JSON.stringify(content[0]), JSON.stringify(IMAGE))
+  assert.equal(content[1].type, 'text')
+  assert.match(content[1].text, /^任务：\n修复登录$/m)
+})
+
+test('/G：文件附件只报错，不创建会话也不发提示词', async () => {
+  const { source, calls } = createHarness()
+  const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('修复登录', {}, [IMAGE, FILE])
+  assert.equal(result.kind, 'error')
+  assert.match(result.text, /^\/G 暂不支持文件附件（文件回执只对当前会话有效）/)
+  assert.match(result.text, /改用 \/D 在当前会话带文件；图片附件可以直接带。/)
+  assert.equal(calls.creates.length, 0)
+  assert.equal(calls.prompts.length, 0)
+  assert.equal(calls.renames.length, 0)
+})
+
+test('/V：图片附件随核验提示词发送', async () => {
+  const { source, calls } = createHarness()
+  const result = await source.matchSpace({ sessionId: 's1' }, '/V').claim.submit('核验改动', {}, [IMAGE])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.renames[0].title, 'V：核验改动')
+  const content = calls.prompts[0].content
+  assert.equal(content.length, 2)
+  assert.equal(JSON.stringify(content[0]), JSON.stringify(IMAGE))
+  assert.match(content[1].text, /只读核验会话/)
+})
+
+test('/V：文件附件只报错，不创建会话', async () => {
+  const { source, calls } = createHarness()
+  const result = await source.matchSpace({ sessionId: 's1' }, '/V').claim.submit('核验改动', {}, [FILE])
+  assert.equal(result.kind, 'error')
+  assert.match(result.text, /^\/V 暂不支持文件附件/)
+  assert.equal(calls.creates.length, 0)
+  assert.equal(calls.prompts.length, 0)
+})
+
+test('/VP：图片附件随计划核验提示词发送', async () => {
+  const { source, calls } = createHarness({ planText: '# 发布对齐\n' })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/VP')
+    .claim.submit('/repo/task/a/PLAN-a.md', {}, [IMAGE])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.renames[0].title, 'V：计划：发布对齐')
+  const content = calls.prompts[0].content
+  assert.equal(content.length, 2)
+  assert.equal(JSON.stringify(content[0]), JSON.stringify(IMAGE))
+  assert.match(content[1].text, /只读计划核验会话/)
+})
+
+test('/VP：文件附件只报错，不创建会话', async () => {
+  const { source, calls } = createHarness({ planText: '# 发布对齐\n' })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/VP')
+    .claim.submit('/repo/task/a/PLAN-a.md', {}, [FILE])
+  assert.equal(result.kind, 'error')
+  assert.match(result.text, /^\/VP 暂不支持文件附件/)
+  assert.equal(calls.creates.length, 0)
+  assert.equal(calls.prompts.length, 0)
 })

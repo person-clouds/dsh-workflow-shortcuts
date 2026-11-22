@@ -1,10 +1,22 @@
 # STATUS — dsh-workflow-shortcuts
 
 - 更新时间：2026-11-22
-- 版本：`0.4.0`（内置 `change-verify`/`plan-verify`、新增 `/VP` 计划核验、D 提示词第 4 条；已准备好、未发布，`npm publish` 需用户 2FA）
+- 版本：`0.5.0`（命令输入支持附件；`0.4.0` 与 `0.5.0` 均未发布，`npm publish` 需用户 2FA）
 - 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理，`/V` 新建只读核验会话，`/VP` 新建只读计划核验会话，`/ok` 清除会话标题的 TODO 标记。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
+
+## 2026-11-22 最新：命令输入支持附件（0.5.0）
+
+- [x] `/D`、`/G`、`/V`、`/VP` 的 claim 声明 `attachments: true`，composer 才会序列化草稿附件并随 `submit` 传入；`/ok` 不声明，行为不变；
+- [x] `/D` 原样转发全部附件：图片按字节、文件按当前会话上传回执，随讨论提示词发送（附件在前、文本在后，与原生 composer 一致）；只带附件不写文字时标题仍为 `D: 新讨论`；
+- [x] `/G`、`/V`、`/VP` 只保留 `type === "image"` 的附件并随新会话首条提示词发送；出现文件附件时统一报错「/<key> 暂不支持文件附件（文件回执只对当前会话有效）…」，不创建会话、不发提示词；
+- [x] `matchEnter()` 不再因附件抛错，附件类型统一交给 `submit` 判定；新增 `promptParts(text, attachments)`，`sendPrompt()` 与三个 `start*` 新会话提示词共用；
+- [x] 会话标题、提示词正文、计划解析与工作区逻辑均未改动；`/G`、`/VP` 空参多选时取消返回 success、草稿与附件被清空的行为与当前一致，本次不改；
+- [x] `npm test` 72/72 通过：新增 `/D` 图片+文件顺序与形状、仅附件标题、`matchEnter` 带附件不抛错、`claim.attachments` 声明、`/G`/`/V`/`/VP` 各一条图片成功与文件拒绝；原 `/V` 附件用例改为合法 file part 并匹配新文案；
+- [x] SPEC.md、README.md、README.en.md 同步；`PROJECT_INDEX.md` 命令集未变（`/D`、`/G`、`/V`、`/VP`、`/ok`），已核对无改动；`package.json` 升 `0.5.0`；
+- [ ] 发布：`0.4.0` 与 `0.5.0` 均未发布；`npm publish` 需用户执行 2FA；
+- [ ] 待验证：更老 DSH 版本是否已有 `claim.attachments`（本机 `0.2.2-rc.1` 已确认存在）；新会话首条消息带图片字节时的实际渲染与预算。
 
 ## 2026-11-22 最新：/VP 计划核验与内置技能（0.4.0）
 
