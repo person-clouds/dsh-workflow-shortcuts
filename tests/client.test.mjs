@@ -195,10 +195,11 @@ test('/D：claim 后发送讨论提示词，未配置规范时不输出具体路
   const { source, calls } = createHarness()
   assert.equal(source.order, -1000)
   const rows = await source.candidates({ sessionId: 's1' }, { query: '', signal: { aborted: false } })
-  assert.equal(JSON.stringify(rows.map((row) => row.name)), JSON.stringify(['D', 'G', 'V']))
+  assert.equal(JSON.stringify(rows.map((row) => row.name)), JSON.stringify(['D', 'G', 'V', 'VP']))
   assert.equal(typeof rows[0].icon, 'function')
   assert.equal(typeof rows[1].icon, 'function')
   assert.equal(typeof rows[2].icon, 'function')
+  assert.equal(typeof rows[3].icon, 'function')
   const outcome = source.matchEnter({ sessionId: 's1' }, '/D 实现登录', undefined, { attachments: 0 })
   assert.deepEqual(outcome.claim.token, '/D ')
   const result = await outcome.claim.submit('实现登录', {}, [])
@@ -209,11 +210,13 @@ test('/D：claim 后发送讨论提示词，未配置规范时不输出具体路
   assert.equal(calls.prompts.length, 1)
   assert.equal(calls.prompts[0].id, 's1')
   const prompt = calls.prompts[0].content[0].text
-  // 三条要点：探索类先讨论不动手、按当前规范写计划、bugfix 直接做并维护文档。
+  // 四条要点：探索类先讨论不动手、按当前规范写计划、bugfix 直接做并维护文档、交付前自检。
   assert.match(prompt, /^1\. 读 PROJECT_INDEX，内容探索（并非既定流程的bugfix），讨论时不要直接干$/m)
   assert.match(prompt, /^2\. 确认后按当前工作区\/仓库既有规范写 PLAN-\*\.md。$/m)
   assert.match(prompt, /^3\. 计划简短可执行；已定位的bugfix直接做并说明；维护好 README\/STATUS\/PROJECT_INDEX$/m)
-  assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
+  assert.match(prompt, /plan-verify/)
+  assert.match(prompt, /^4[.] 交付计划前按 plan-verify 自检：事实、反例、安全、验收可判定；未核实的标「待验证」。$/m)
+  assert.equal(prompt.match(/^\d+\. /gm)?.length, 4)
   assert.doesNotMatch(prompt, /_meta\/doc\/task-workflow\.md/)
   assert.doesNotMatch(prompt, /documentation-rules\.md/)
   assert.doesNotMatch(prompt, /implementation_status|## 改动记录/)
@@ -233,7 +236,7 @@ test('/D：只配置 planDoc 时只出现计划规范', async () => {
   assert.match(prompt, /^2\. 确认后写 PLAN-\*\.md，遵循以下规范：$/m)
   assert.match(prompt, /^- 计划规范：\/home\/zh\/www\/doc\/specs\/documentation-rules\.md$/m)
   assert.doesNotMatch(prompt, /工作流规范：|计划模板：/)
-  assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
+  assert.equal(prompt.match(/^\d+\. /gm)?.length, 4)
 })
 
 test('/D：三项配置按顺序进入第 2 条，且空值与非字符串被忽略', async () => {
@@ -249,7 +252,7 @@ test('/D：三项配置按顺序进入第 2 条，且空值与非字符串被忽
   await source.matchSpace({ sessionId: 's1' }, '/D').claim.submit('写计划', {}, [])
   const prompt = calls.prompts[0].content[0].text
   assert.match(prompt, /- 工作流规范：\/home\/zh\/www\/_meta\/doc\/task-workflow\.md\n- 计划规范：\/home\/zh\/www\/doc\/specs\/documentation-rules\.md\n- 计划模板：\/home\/zh\/www\/_meta\/doc\/plan-template\.md/)
-  assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
+  assert.equal(prompt.match(/^\d+\. /gm)?.length, 4)
 
   window.__DSH_WORKFLOW_SHORTCUTS_CONFIG__ = {
     workflowDoc: '   ',
@@ -260,7 +263,7 @@ test('/D：三项配置按顺序进入第 2 条，且空值与非字符串被忽
   const updated = calls.prompts[1].content[0].text
   assert.match(updated, /^2\. 确认后按当前工作区\/仓库既有规范写 PLAN-\*\.md。$/m)
   assert.doesNotMatch(updated, /工作流规范：|计划规范：|计划模板：/)
-  assert.equal(updated.match(/^\d+\. /gm)?.length, 3)
+  assert.equal(updated.match(/^\d+\. /gm)?.length, 4)
 })
 
 test('/D：空任务时使用 D: 新讨论 标题', async () => {
@@ -531,7 +534,7 @@ test('/D：默认读取工作区附加要求文件并追加到任务之前', asy
   assert.match(prompt, /^附加要求：$/m)
   assert.match(prompt, /新想法先记到 doc\/ideas\.md；改代码前先说清影响面。/)
   assert.ok(prompt.indexOf('附加要求：') < prompt.indexOf('任务：'))
-  assert.equal(prompt.match(/^\d+\. /gm)?.length, 3)
+  assert.equal(prompt.match(/^\d+\. /gm)?.length, 4)
 })
 
 test('/D：缺少附加要求文件或内容为空时不出现附加段落', async () => {
@@ -640,7 +643,7 @@ test('/ok：TODO D: 前缀同样可清', async () => {
 
 test('/V：新建只读核验会话，标题带 V：前缀并注入快照与两轮封顶', async () => {
   const { source, calls } = createHarness()
-  assert.equal(JSON.stringify(source.lexicon({ sessionId: 's1' })), JSON.stringify(['D', 'G', 'V']))
+  assert.equal(JSON.stringify(source.lexicon({ sessionId: 's1' })), JSON.stringify(['D', 'G', 'V', 'VP']))
   const outcome = source.matchEnter({ sessionId: 's1' }, '/V 核验 guard 改动', undefined, { attachments: 0 })
   assert.equal(outcome.claim.token, '/V ')
   assert.equal(outcome.claim.hint, '[改动说明 | 快照 sha]')
@@ -680,4 +683,99 @@ test('/V：配置 verifyPromptFile 时把附加要求拼进提示词', async () 
   const prompt = calls.prompts[0].content[0].text
   assert.match(prompt, /附加要求：/)
   assert.match(prompt, /只看 lib\/verify-mode\.js/)
+})
+
+test('/VP：显式计划路径，标题为 V：计划：，提示词不带快照', async () => {
+  const { source, calls } = createHarness({ planText: '# 发布对齐\n' })
+  const outcome = source.matchEnter(
+    { sessionId: 's1' },
+    '/VP /repo/task/a/PLAN-a.md 重点看回滚 快照：abc1234',
+    undefined,
+    { attachments: 0 }
+  )
+  assert.equal(outcome.claim.token, '/VP ')
+  assert.equal(outcome.claim.hint, '[计划文档路径 | 空=最近消息选择]')
+  const result = await outcome.claim.submit('/repo/task/a/PLAN-a.md 重点看回滚 快照：abc1234', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.renames[0].title, 'V：计划：发布对齐')
+  assert.deepEqual(calls.opened, ['s2'])
+  const prompt = calls.prompts[0].content[0].text
+  assert.match(prompt, /只读计划核验会话/)
+  assert.match(prompt, /^计划文档：\/repo\/task\/a\/PLAN-a\.md$/m)
+  assert.doesNotMatch(prompt, /\\n/)
+  assert.match(prompt, /^核验重点：$/m)
+  assert.match(prompt, /plan-verify/)
+  assert.match(prompt, /最多两轮/)
+  assert.match(prompt, /需要你执行/)
+  assert.match(prompt, /快照：<已省略>/)
+  assert.doesNotMatch(prompt, /快照：abc1234/)
+})
+
+test('/VP 空参数：唯一候选自动使用，并把原消息作为上下文且抹掉快照', async () => {
+  const { source, calls } = createHarness({
+    entries: [userMessage('看 /repo/task/a/PLAN-a.md 快照：deadbee'), assistantMessage('好')],
+    planText: '# 唯一计划\n'
+  })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/VP').claim.submit('', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.dialogs.length, 0)
+  assert.equal(calls.renames[0].title, 'V：计划：唯一计划')
+  const prompt = calls.prompts[0].content[0].text
+  assert.match(prompt, /原始上下文（最近消息摘录）：/)
+  assert.match(prompt, /\/repo\/task\/a\/PLAN-a\.md/)
+  assert.match(prompt, /快照：<已省略>/)
+  assert.doesNotMatch(prompt, /deadbee/)
+})
+
+test('/VP 空参数：多个候选弹出核验选择框，选中后使用对应路径', async () => {
+  const { source, calls } = createHarness({
+    entries: [
+      userMessage('看 /repo/task/a/PLAN-a.md'),
+      userMessage('也看 /repo/task/b/PLAN-b.md')
+    ],
+    files: {
+      '/repo/task/a/PLAN-a.md': '# 计划A\n',
+      '/repo/task/b/PLAN-b.md': '# 计划B\n'
+    },
+    onDialog(dialog) {
+      assert.equal(calls.dialogs.length, 1)
+      assert.equal(dialog.children[0].textContent, '选择要核验的计划文档')
+      clickPlan(dialog, 1)
+    }
+  })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/VP').claim.submit('', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.dialogs.length, 1)
+  assert.equal(calls.creates.length, 1)
+  assert.match(calls.prompts[0].content[0].text, /\/repo\/task\/a\/PLAN-a\.md/)
+})
+
+test('/VP 空参数：取消选择不创建会话；无候选直接报错', async () => {
+  const cancelled = createHarness({
+    entries: [
+      userMessage('看 /repo/task/a/PLAN-a.md'),
+      userMessage('也看 /repo/task/b/PLAN-b.md')
+    ],
+    onDialog: clickCancel
+  })
+  const cancelledResult = await cancelled.source.matchSpace({ sessionId: 's1' }, '/VP').claim.submit('', {}, [])
+  assert.equal(cancelledResult.kind, 'success')
+  assert.equal(cancelled.calls.dialogs.length, 1)
+  assert.equal(cancelled.calls.creates.length, 0)
+  assert.equal(cancelled.calls.opened.length, 0)
+
+  const missing = createHarness({ entries: [userMessage('这里没有计划')] })
+  const missingResult = await missing.source.matchSpace({ sessionId: 's1' }, '/VP').claim.submit('', {}, [])
+  assert.equal(missingResult.kind, 'error')
+  assert.match(missingResult.text, /最近 5 条消息未找到可读的 \.md 计划文档/)
+  assert.equal(missing.calls.creates.length, 0)
+})
+
+test('/VP：不是计划路径时报错，不创建会话', async () => {
+  const { source, calls } = createHarness()
+  const result = await source.matchSpace({ sessionId: 's1' }, '/VP').claim.submit('看看这个计划', {}, [])
+  assert.equal(result.kind, 'error')
+  assert.match(result.text, /未找到 \.md 计划文档路径/)
+  assert.equal(calls.creates.length, 0)
 })

@@ -1,12 +1,23 @@
 # STATUS — dsh-workflow-shortcuts
 
 - 更新时间：2026-11-22
-- 版本：`0.3.1`（文档与文案修订；`0.3.0` 的 npm 包含 `session/event` 与 `/ok`，`0.3.1` 发布后 `latest` 可查）
-- 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理，`/V` 新建只读核验会话，`/ok` 清除会话标题的 TODO 标记。
+- 版本：`0.4.0`（内置 `change-verify`/`plan-verify`、新增 `/VP` 计划核验、D 提示词第 4 条；已准备好、未发布，`npm publish` 需用户 2FA）
+- 一句话：DSH Web 工作流快捷命令 `/D` 讨论并落成计划文档，`/G` 按计划文档或输入文字新建会话处理，`/V` 新建只读核验会话，`/VP` 新建只读计划核验会话，`/ok` 清除会话标题的 TODO 标记。
 - 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 - 发布入口：[PUBLISHING.md](PUBLISHING.md)、[market 条目](market/person-clouds__dsh-workflow-shortcuts.yml)
 
-## 2026-11-22 最新：/D 第 1 条去掉 SPEC
+## 2026-11-22 最新：/VP 计划核验与内置技能（0.4.0）
+
+- [x] 新增 `/VP [计划文档路径 | 核验重点]`：标题 `V：计划：<计划标题>`；空参从当前会话最近 5 条消息里找可读 `.md` 计划，1 个直接使用、多个弹「选择要核验的计划文档」选择框、取消不建会话、0 个报错；显式参数必须命中计划路径，否则报用法错误；
+- [x] `/VP` 提示词引用内置 `plan-verify` 技能，**不写**可参与去重的 `快照：<sha>` 键（输入里的快照文本替换为 `快照：<已省略>`），同一计划可反复审、不被派单去重拦截；只读与预算仍由 `dsh-context-guard` 按 `V：`/`TODO：V：` 标题强制；
+- [x] 内置 `skills/change-verify/SKILL.md`（从 agent-skills 迁入，唯一源）与 `skills/plan-verify/SKILL.md`；`lib/bundled-skills.js` 解析 frontmatter，`index.js` 经 `ctx.inject(['skills'])` 注册为 `source: 'bundled'`、`provider: 'dsh-workflow-shortcuts'`；无 skills 服务或单个技能缺失时静默跳过，不阻塞插件启动；
+- [x] 同名优先级：项目 `.dsh/skills`（rank 100）> 插件运行时注册（250）> 用户 `~/.dsh/skills`（400）；运行时注册是启动快照，改 `SKILL.md` 后需重启 `dsh web`；
+- [x] `/D` 提示词新增第 4 条：交付计划前按 `plan-verify` 自检事实、反例、安全、验收可判定，未核实写「待验证」；
+- [x] `package.json` 升 `0.4.0`，description 补 `/V`、`/VP`，`files` 加 `skills`；命令集为 `/D`、`/G`、`/V`、`/VP`、`/ok`；
+- [x] `npm test` 63/63 通过：覆盖 `/VP` 显式路径、空参单选/多选/取消/无候选、非计划路径、标题、快照文本替换，技能 frontmatter 解析与注册、注册抛错不阻塞，`npm pack --dry-run` 含两个 `SKILL.md` 与 `lib/bundled-skills.js`，D 提示词四条；
+- [ ] 发布 `0.4.0`：版本已准备好、尚未发布；`npm publish` 需用户执行 2FA。硬拦依赖 `@fenghoer/dsh-context-guard` ≥ `0.5.0`，本机已是 `0.5.0`，npm `latest` 目前仍为 `0.4.4`，两仓按 guard → shortcuts 顺序发布。
+
+## 2026-11-22：/D 第 1 条去掉 SPEC
 
 - [x] `/D` 第 1 条由「读 PROJECT_INDEX 与 SPEC」改为「读 PROJECT_INDEX」，减少无关规范读取；
 - [x] 测试断言、README.md、README.en.md 同步；
@@ -106,11 +117,12 @@
 
 | # | 事项 | 说明 |
 |---|---|---|
-| 1 | 宿主机安装验收 | 执行 `bash dsh-workflow-shortcuts/scripts/apply-profile.sh web`，浏览器验证 `/D`、`/G`、`/V` 与 `/ok` 的真实交互（`/V` 需与 `dsh-context-guard` 核验态一起验证） |
+| 1 | 宿主机安装验收 | 执行 `bash dsh-workflow-shortcuts/scripts/apply-profile.sh web`，浏览器验证 `/D`、`/G`、`/V`、`/VP` 与 `/ok` 的真实交互（`/V`、`/VP` 需与 `dsh-context-guard` ≥ `0.5.0` 核验态一起验证；改技能后需重启 `dsh web`） |
 | 2 | ~~市场 PR 合并~~ | #15389 已合并；市场按 `releases/latest` 自动取到 `v0.2.0` |
 | 3 | ~~npm 发布 `0.2.0`~~ | 已发布，`latest` = `0.2.0`；`0.2.1` 被暂存未批准，已放弃 |
 | 4 | npm 占位版本清理 | `0.0.0-stage` 是 npm 首次发布时的临时占位，不影响 `latest`；后续按 npm 支持情况清理 |
 | 5 | ~~发布 `0.3.0`~~ | npm `0.3.0` 与 GitHub Release `v0.3.0` 已发布；市场条目描述已同步 | 2026-11-22 补 `0.3.1`（文档修订）并同步市场描述。
+| 6 | 发布 `0.4.0` | 已准备好、未发布；需用户执行 `npm publish`（2FA），并按 guard `0.5.0` → shortcuts `0.4.0` 顺序发布 |
 
 ## 验证记录
 
@@ -152,3 +164,5 @@
 | 2026-11-22 | `npm publish` / `npm view` | `dsh-workflow-shortcuts@0.3.1` 已发布，`latest` = `0.3.1` |
 | 2026-11-22 | GitHub Release `v0.3.1` | 资产 `dsh-workflow-shortcuts.tgz` 28165 字节，`latest/download` 返回 200，内含 `version: 0.3.1` |
 | 2026-11-22 | `npm test`（/V 核验层） | 53/53 通过；覆盖 `/V` 新会话/标题/快照提取/空参/附件拒绝/附加要求拼接 |
+| 2026-11-22 | `npm test`（0.4.0 `/VP` 与内置技能） | 63/63 通过；覆盖 `/VP` 显式路径/空参单选/多选/取消/无候选/非计划路径/标题/快照文本替换、技能解析与注册、注册抛错不阻塞、打包内容、D 提示词四条 |
+| 2026-11-22 | `./scripts/check.sh --repo dsh-workflow-shortcuts` | 通过；4 篇文档，0 警告 |

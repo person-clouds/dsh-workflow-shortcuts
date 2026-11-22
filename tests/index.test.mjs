@@ -384,3 +384,100 @@ test('Host：模型漏输出标记但收尾含实质「需要你执行」小节�
   assert.equal(await onAssistantMessage(sub.ctx, {}, sub.session, todoMessage('## 需要你执行\n\n1. 重启 dsh-web')), false)
   assert.deepEqual(sub.calls, [])
 })
+
+test('内置技能：frontmatter 解析合法，缺失或格式错误返回 null', async () => {
+  const { parseSkillDocument } = await import('../lib/bundled-skills.js')
+  const ok = parseSkillDocument('---\nname: demo\ndescription: 演示\nwhenToUse: 需要时\n---\n\n# 正文\n内容\n')
+  assert.equal(ok.name, 'demo')
+  assert.equal(ok.description, '演示')
+  assert.equal(ok.whenToUse, '需要时')
+  assert.equal(ok.content, '# 正文\n内容')
+  assert.equal(parseSkillDocument('# 没有 frontmatter\n'), null)
+  assert.equal(parseSkillDocument('---\nname: demo\n---\n正文\n'), null)
+  const crlf = parseSkillDocument('\uFEFF---\r\nname: demo\r\ndescription: 演示\r\n---\r\n正文\r\n')
+  assert.equal(crlf.name, 'demo')
+})
+
+test('内置技能：随包读取两个 SKILL.md，单目录缺失时返回空数组不抛错', async () => {
+  const { loadBundledSkills, SKILLS_DIR } = await import('../lib/bundled-skills.js')
+  const skills = loadBundledSkills()
+  assert.deepEqual(skills.map((skill) => skill.name), ['change-verify', 'plan-verify'])
+  for (const skill of skills) {
+    assert.ok(skill.description.length > 0)
+    assert.ok(skill.content.length > 0)
+    assert.ok(skill.path.startsWith(SKILLS_DIR))
+    assert.ok(skill.path.endsWith('SKILL.md'))
+  }
+  assert.deepEqual(loadBundledSkills('/nonexistent-skills-dir'), [])
+})
+
+test('Host：skills 晚到时注册两个内置技能，包含 source 与 provider', () => {
+  const { ctx, injections } = applyFixture()
+  apply(ctx)
+  assert.ok(injections.has('skills'))
+
+  const registered = []
+  const disposers = []
+  const infos = []
+  const skillCtx = {
+    logger: { info: (message) => infos.push(message), warn: () => {} },
+    // 与 Cordis 一致：effect 立即执行回调，并收集回调返回的 disposer；
+    // 不能把回调直接当 disposer 调用，否则「注册即释放」的写法也会通过。
+    effect: (fn) => {
+      const disposer = fn()
+      if (typeof disposer === 'function') disposers.push(disposer)
+      return disposer
+    },
+    skills: {
+      register: (skill) => {
+        registered.push(skill)
+        return () => {}
+      }
+    }
+  }
+  injections.get('skills')(skillCtx)
+  assert.deepEqual(registered.map((skill) => skill.name), ['change-verify', 'plan-verify'])
+  for (const skill of registered) {
+    assert.equal(skill.source, 'bundled')
+    assert.equal(skill.provider, 'dsh-workflow-shortcuts')
+    assert.ok(skill.content.length > 0)
+  }
+  assert.equal(disposers.length, 2)
+  assert.match(infos.join('\n'), /已注册 2 个内置技能/)
+})
+
+test('Host：注册技能抛错时只告警，不阻塞其它技能与插件', () => {
+  const { ctx, injections } = applyFixture()
+  apply(ctx)
+  const warnings = []
+  const registered = []
+  const skillCtx = {
+    logger: { info: () => {}, warn: (...args) => warnings.push(args) },
+    effect: (fn) => fn(),
+    skills: {
+      register: (skill) => {
+        if (skill.name === 'change-verify') throw new Error('duplicate skill')
+        registered.push(skill.name)
+      }
+    }
+  }
+  injections.get('skills')(skillCtx)
+  assert.deepEqual(registered, ['plan-verify'])
+  assert.equal(warnings.length, 1)
+  assert.equal(warnings[0][1], 'change-verify')
+})
+
+test('打包：npm pack --dry-run 包含两个 SKILL.md 与技能加载模块', async () => {
+  const { execFileSync } = await import('node:child_process')
+  const { fileURLToPath } = await import('node:url')
+  const root = fileURLToPath(new URL('..', import.meta.url))
+  const output = execFileSync('npm', ['pack', '--dry-run', '--json'], {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  })
+  const files = JSON.parse(output)[0].files.map((file) => file.path)
+  assert.ok(files.includes('skills/change-verify/SKILL.md'))
+  assert.ok(files.includes('skills/plan-verify/SKILL.md'))
+  assert.ok(files.includes('lib/bundled-skills.js'))
+})

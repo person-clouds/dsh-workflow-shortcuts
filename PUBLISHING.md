@@ -1,7 +1,7 @@
 # 发布到 DSH 插件市场
 
-> 状态：**npm `dsh-workflow-shortcuts@0.3.1` 与 GitHub Release `v0.3.1` 待发布；`0.3.0` 已发布。**
-> 包名：`dsh-workflow-shortcuts`（npm 最新 `0.3.1`）
+> 状态：**`0.4.0` 待发布（`npm publish` 需用户 2FA）；上一版 `0.3.1` 已发布。**
+> 包名：`dsh-workflow-shortcuts`（npm 已发布版 `0.3.1`，本轮待发 `0.4.0`）
 > 公开仓库：<https://github.com/person-clouds/dsh-workflow-shortcuts>
 > 市场条目：`market/person-clouds__dsh-workflow-shortcuts.yml`
 
@@ -14,7 +14,7 @@ node -e "new (require('vm').Script)(require('fs').readFileSync('client.js','utf8
 npm_config_cache=/tmp/npm-cache npm pack --dry-run
 ```
 
-预期：5 个单元测试全部通过，`client.js` 可被普通脚本解析，打包清单包含 Host/Client入口、安装脚本、中英文 README 与 LICENSE。
+预期：`npm test` 63/63 通过（含 `/VP`、技能注册与打包用例），`client.js` 可被普通脚本解析，打包清单包含 Host/Client 入口、`lib/bundled-skills.js`、`skills/change-verify`、`skills/plan-verify`、安装脚本、中英文 README 与 LICENSE。
 
 ## 二、创建公开 GitHub 仓库
 
@@ -46,7 +46,7 @@ dsh plugin --profile web add dsh-workflow-shortcuts
 
 ## 四、创建 GitHub Release
 
-- tag：当前 `v0.3.1`（历史：`v0.2.0` 已发布；`0.2.1` 曾因 npm 暂存未批准放弃）
+- tag：`v0.4.0`（发布时创建；历史：`v0.2.0`/`v0.3.0`/`v0.3.1` 已发布；`0.2.1` 曾因 npm 暂存未批准放弃）
 - 上传 tarball 时把文件改名为无版本号的 `dsh-workflow-shortcuts.tgz`
 - Release 资源名保持无版本号，避免 `releases/latest/download/` 链接在下一版后 404
 
@@ -54,7 +54,7 @@ dsh plugin --profile web add dsh-workflow-shortcuts
 
 ```bash
 npm_config_cache=/tmp/npm-cache npm pack --pack-destination release
-mv release/dsh-workflow-shortcuts-0.3.1.tgz release/dsh-workflow-shortcuts.tgz
+mv release/dsh-workflow-shortcuts-0.4.0.tgz release/dsh-workflow-shortcuts.tgz
 ```
 
 ## 五、提交 DSH 插件市场（PR #15389 已合并）

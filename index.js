@@ -1,13 +1,15 @@
 /**
  * DSH 工作流快捷命令（Host 侧）。
  *
- * /D、/G、/V 的输入识别与动作都在 Client 侧完成。Host 声明可选配置，
+ * /D、/G、/V、/VP 的输入识别与动作都在 Client 侧完成。Host 声明可选配置，
  * 把清洗后的规范文档路径与提示词附加要求文件路径注入浏览器全局；
- * 同时向模型注入 TODO 用户动作标记约束，并监听 session/event
- * 在命中标记时给会话标题加 TODO 前缀（/ok 在 Client 侧清除）。
+ * 同时向模型注入 TODO 用户动作标记约束，监听 session/event
+ * 在命中标记时给会话标题加 TODO 前缀（/ok 在 Client 侧清除），
+ * 并向 skills 服务注册随包携带的 change-verify / plan-verify。
  */
 
 import z from '@deepseek-ai/schemastery'
+import { loadBundledSkills } from './lib/bundled-skills.js'
 import {
   hasUserActionMarker,
   hasUserActionSection,
@@ -156,6 +158,29 @@ export function apply(ctx, config = {}) {
       titleCtx.on('session/event', (session, event) => {
         scheduleAssistantMessage(titleCtx, config, session, event)
       }, { global: true })
+    })
+
+    // 技能随插件发布，避免 ~/.dsh/skills 的软链在 superagent 等预设下不可见。
+    // 读取失败只影响对应技能的提示，不阻塞插件加载。
+    ctx.inject(['skills'], skillCtx => {
+      const skills = loadBundledSkills()
+      for (const skill of skills) {
+        try {
+          // register 返回 Cordis 的 effect disposer；必须作为 effect 回调的返回值收集，
+          // 直接把它当回调传给 effect 会在注册瞬间就执行释放，技能等于没注册。
+          skillCtx.effect(() => skillCtx.skills.register({
+            name: skill.name,
+            description: skill.description,
+            whenToUse: skill.whenToUse,
+            content: skill.content,
+            source: 'bundled',
+            provider: 'dsh-workflow-shortcuts',
+          }))
+        } catch (error) {
+          skillCtx.logger.warn('dsh-workflow-shortcuts: 注册技能 %s 失败 %s', skill.name, error)
+        }
+      }
+      skillCtx.logger.info(`dsh-workflow-shortcuts: 已注册 ${skills.length} 个内置技能`)
     })
   }
 }

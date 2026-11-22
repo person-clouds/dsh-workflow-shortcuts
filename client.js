@@ -6,7 +6,7 @@ var exports = module.exports;
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 
 /**
- * /D、/G、/V 三个大写单字母快捷命令的 Client 实现。
+ * /D、/G、/V、/VP 四个快捷命令的 Client 实现。
  *
  * Host 命令名只允许小写，所以这里注册一个独立的 `/` 输入源：
  * 菜单、空格、回车和命令 chip 恢复都返回自定义 claim，
@@ -35,6 +35,12 @@ V: {
 name: "v",
 description: "核验：新建只读核验会话，检查改动是否真的生效",
 hint: "[改动说明 | 快照 sha]",
+icon: IconChecklistOutlineRegular
+},
+VP: {
+name: "vp",
+description: "计划核验：只读审查计划的完善性、反例与安全性",
+hint: "[计划文档路径 | 空=最近消息选择]",
 icon: IconChecklistOutlineRegular
 }
 };
@@ -166,7 +172,8 @@ const planLine = specs.length === 0
 const lines = [
 "1. 读 PROJECT_INDEX，内容探索（并非既定流程的bugfix），讨论时不要直接干",
 planLine,
-"3. 计划简短可执行；已定位的bugfix直接做并说明；维护好 README/STATUS/PROJECT_INDEX"
+"3. 计划简短可执行；已定位的bugfix直接做并说明；维护好 README/STATUS/PROJECT_INDEX",
+"4. 交付计划前按 plan-verify 自检：事实、反例、安全、验收可判定；未核实的标「待验证」。"
 ];
 if (overlay !== "") lines.push("", "附加要求：", overlay);
 lines.push(
@@ -358,6 +365,45 @@ if (overlay !== "") lines.push("", "附加要求：", overlay);
 return lines.join("\n");
 }
 
+/** 计划核验提示词里抹掉快照标记，避免从历史消息带入派单去重键。 */
+function withoutSnapshotText(text) {
+return String(text ?? "").replace(/(?:快照|snapshot)[：:]\s*[0-9a-f]{7,40}/gi, "快照：<已省略>");
+}
+
+/**
+ * 计划核验会话提示词：只审计划，不实施；不写快照，同一计划可反复审。
+ *
+ * 预算与只读同样由 context-guard 的核验态（标题 `V：`）强制。
+ */
+function planVerifyPrompt(planPath, focus, sourceText, overlay = "") {
+const focusText = withoutSnapshotText(focus).trim();
+const source = withoutSnapshotText(sourceText).trim();
+const overlayText = withoutSnapshotText(overlay).trim();
+const lines = [
+"只读计划核验会话：只审查计划文档本身；不实施、不改文件、不提交、不装依赖、不重启服务。",
+"",
+`计划文档：${planPath}`,
+""
+];
+if (source !== "") lines.push("原始上下文（最近消息摘录）：", source, "");
+if (focusText !== "") lines.push("核验重点：", focusText, "");
+lines.push(
+"步骤：",
+"1. 按 plan-verify 技能的步骤核验（未加载时按同义步骤：目标对齐、事实、可执行性、验收可判定、反例与安全、文档一致性）。",
+"2. 只读核验；不执行计划里的验收命令，只确认命令存在且结果可判定。",
+"3. 最多两轮；两轮仍未收敛就按「需修订/不可执行」收尾。",
+"4. 只报告，不改计划；阻断项给文件:行与建议补法。",
+"",
+"报告格式：",
+"- 结论：可执行 / 需修订 / 不可执行（一句话）。",
+"- 阻断项：严重度 + 位置 + 问题 + 证据 + 建议。",
+"- 缺口与反例：未验证事实、边界/失败/并发/回滚。",
+"- 需要你执行：补充证据或决策；没有就写「无」。"
+);
+if (overlayText !== "") lines.push("", "附加要求：", overlayText);
+return lines.join("\n");
+}
+
 function apply(ctx) {
 const sessions = ctx.sessions;
 const workspaces = ctx.workspaces;
@@ -436,7 +482,13 @@ if (seen.has(planPath)) continue;
 seen.add(planPath);
 if (await readablePlanPath(sessionId, planPath)) {
 const title = await readPlanTitle(sessionId, planPath);
-candidates.push({ path: planPath, title, sourceIndex: index + 1 });
+const text = texts[index];
+candidates.push({
+path: planPath,
+title,
+sourceIndex: index + 1,
+sourceText: text.length > 1600 ? `${text.slice(0, 1600)}…` : text
+});
 }
 }
 }
@@ -444,7 +496,7 @@ return candidates;
 }
 
 /** 弹出计划选择框；选中返回绝对路径，取消/关闭返回 undefined。 */
-function choosePlan(candidates) {
+function choosePlan(candidates, titleText = "选择要执行的计划文档") {
 return new Promise((resolve) => {
 if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body) {
 resolve(undefined);
@@ -453,7 +505,7 @@ return;
 const dialog = document.createElement("dialog");
 dialog.className = "dsh-workflow-shortcuts-plan-picker";
 const title = document.createElement("h2");
-title.textContent = "选择要执行的计划文档";
+title.textContent = titleText;
 dialog.appendChild(title);
 const list = document.createElement("div");
 let settled = false;
@@ -584,6 +636,7 @@ await sendPrompt(session.sessionId, discussionPrompt(args, overlay), discussionT
 return { kind: "success" };
 }
 if (key === "V") return await startVerification(session.sessionId, args);
+if (key === "VP") return await startPlanVerification(session.sessionId, args);
 return await startExecution(session.sessionId, args);
 } catch (error) {
 return errorOutcome(error);
@@ -655,6 +708,67 @@ uiWorkspace.openSession(newSessionId);
 return { kind: "success" };
 }
 
+/**
+ * 计划核验会话：标题仍以 `V：` 开头，复用 guard 的只读与预算；
+ * 空参数从最近消息里选计划，提示词不带 `快照：`，同一计划可反复审。
+ */
+async function startPlanVerification(sessionId, rawArgs) {
+const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
+if (!cwd) throw new Error("无法确定当前会话的工作目录，/VP 已取消。");
+const text = String(rawArgs).trim();
+let request;
+if (text !== "") {
+const parsed = parseExecutionRequest(cwd, text);
+if (parsed.kind !== "plan") {
+throw new Error("未找到 .md 计划文档路径；用法：/VP [计划文档路径] [核验重点]");
+}
+request = { kind: "plan", planPath: parsed.planPath, instruction: parsed.instruction };
+} else {
+const limit = recentMessageLimit();
+const candidates = await collectRecentPlanCandidates(sessionId, cwd, limit);
+if (candidates.length === 0) {
+throw new Error(`最近 ${limit} 条消息未找到可读的 .md 计划文档。`);
+}
+if (candidates.length === 1) {
+request = {
+kind: "plan",
+planPath: candidates[0].path,
+instruction: "",
+sourceText: candidates[0].sourceText
+};
+} else {
+const planPath = await choosePlan(candidates, "选择要核验的计划文档");
+if (planPath === undefined) return { kind: "success" };
+const candidate = candidates.find((item) => item.path === planPath);
+request = { kind: "plan", planPath, instruction: "", sourceText: candidate?.sourceText };
+}
+}
+
+const planTitle = await readPlanTitle(sessionId, request.planPath);
+const summary = planTitle === undefined || planTitle === "" ? basename(request.planPath) : planTitle;
+const title = `V：计划：${summarizeTitle(summary)}`;
+
+const workspace = await ensureWorkspace(cwd);
+const config = workflowConfig();
+const file = resolveOverlayFile(config.verifyPromptFile, DEFAULT_VERIFY_PROMPT_FILE);
+const overlay = await promptOverlay(sessionId, cwd, file);
+
+const newSessionId = await sessions.create({ workspaceId: workspace.workspaceId });
+
+await sessions.using(newSessionId, { source: "workflowShortcuts" }, async (reference) => {
+const renamed = await reference.binding.session.rename(title);
+if (!renamed.ok) throw remoteFailure("session.rename", renamed);
+const prompted = await reference.binding.session.prompt(
+[{ type: "text", text: planVerifyPrompt(request.planPath, request.instruction, request.sourceText, overlay) }],
+"queue"
+);
+if (!prompted.ok) throw remoteFailure("session.prompt", prompted);
+});
+
+uiWorkspace.openSession(newSessionId);
+return { kind: "success" };
+}
+
 /** 核验会话：标题 `V：…`，context-guard 据此切只读与核验预算。 */
 async function startVerification(sessionId, rawArgs) {
 const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
@@ -697,7 +811,7 @@ return workspaces.create({ path: cwd });
 
 function keyOfToken(token) {
 const raw = token.startsWith("/") ? token.slice(1) : token;
-return raw === "D" || raw === "G" || raw === "V" ? raw : undefined;
+return raw === "D" || raw === "G" || raw === "V" || raw === "VP" ? raw : undefined;
 }
 
 const source = {
