@@ -6,7 +6,7 @@ var exports = module.exports;
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 
 /**
- * /D、/G、/V、/VP 四个快捷命令的 Client 实现。
+ * /D、/G、/C、/V、/VP 五个快捷命令的 Client 实现。
  *
  * Host 命令名只允许小写，所以这里注册一个独立的 `/` 输入源：
  * 菜单、空格、回车和命令 chip 恢复都返回自定义 claim，
@@ -29,6 +29,12 @@ G: {
 name: "g",
 description: "执行：按计划文档或输入文字新建会话处理",
 hint: "<计划文档路径 | 任务描述>",
+icon: IconPlayOutlineRegular
+},
+C: {
+name: "c",
+description: "问题：查 bug、核对信息并直接处理（当前会话）",
+hint: "[问题描述 | 收到的信息]",
 icon: IconPlayOutlineRegular
 },
 V: {
@@ -55,13 +61,14 @@ const CONFIG_GLOBAL = "__DSH_WORKFLOW_SHORTCUTS_CONFIG__";
  * 去掉标题开头的一个 TODO 前缀。
  *
  * 与 Host 侧 lib/todo.js 的 PREFIX 保持一致：`TODO：标题`、`TODO: 标题`、
- * `TODO D: 标题`、`TODO G：标题` 都只去掉 `TODO` 与其后的一次分隔符。
+ * `TODO D: 标题`、`TODO G：标题`、`TODO C：标题` 都只去掉 `TODO` 与其后的一次分隔符。
  */
-const TODO_PREFIX = /^TODO(?:[：:]\s*|\s+(?=[DG][：:]))/u;
+const TODO_PREFIX = /^TODO(?:[：:]\s*|\s+(?=[DGC][：:]))/u;
 const stripTodoPrefix = (title) => String(title ?? "").replace(TODO_PREFIX, "");
 const DEFAULT_DISCUSSION_PROMPT_FILE = ".dsh/workflow-shortcuts/discussion.md";
 const DEFAULT_EXECUTION_PROMPT_FILE = ".dsh/workflow-shortcuts/execution.md";
 const DEFAULT_VERIFY_PROMPT_FILE = ".dsh/workflow-shortcuts/verify.md";
+const DEFAULT_CHECK_PROMPT_FILE = ".dsh/workflow-shortcuts/check.md";
 const MAX_PROMPT_OVERLAY_LINES = 200;
 const MAX_PROMPT_OVERLAY_CHARS = 8000;
 
@@ -80,7 +87,8 @@ planDoc: configDocPath(raw?.planDoc),
 planTemplate: configDocPath(raw?.planTemplate),
 discussionPromptFile: configDocPath(raw?.discussionPromptFile),
 executionPromptFile: configDocPath(raw?.executionPromptFile),
-verifyPromptFile: configDocPath(raw?.verifyPromptFile)
+verifyPromptFile: configDocPath(raw?.verifyPromptFile),
+checkPromptFile: configDocPath(raw?.checkPromptFile)
 };
 } catch {
 return {
@@ -89,7 +97,8 @@ planDoc: "",
 planTemplate: "",
 discussionPromptFile: "",
 executionPromptFile: "",
-verifyPromptFile: ""
+verifyPromptFile: "",
+checkPromptFile: ""
 };
 }
 }
@@ -170,6 +179,9 @@ const planLine = specs.length === 0
 ? "2. 确认后按当前工作区/仓库既有规范写 PLAN-*.md。"
 : `2. 确认后写 PLAN-*.md，遵循以下规范：\n${specs.join("\n")}`;
 const lines = [
+"You are a senior software architect.",
+"",
+"说明：本命令只做内容探索与计划；bugfix、线上异常处理请改用 /C。",
 "1. 读 PROJECT_INDEX，内容探索（并非既定流程的bugfix），讨论时不要直接干",
 planLine,
 "3. 计划简短可执行；已定位的bugfix直接做并说明；维护好 README/STATUS/PROJECT_INDEX",
@@ -309,6 +321,8 @@ return fallback;
 
 function executionPrompt(cwd, request, overlay = "") {
 const lines = [
+"You are a senior software development expert.",
+"",
 `1. 工作区：${cwd}；先读工作区 AGENTS.md，文档和代码按需查阅。`,
 ""
 ];
@@ -343,6 +357,8 @@ function verifyPrompt(snapshot, task, overlay = "") {
 const sha = String(snapshot).trim();
 const scope = String(task).trim();
 const lines = [
+"You are a senior software testing expert.",
+"",
 "只读核验会话：只核执行结果与行为是否生效；不改代码、不提交、不装依赖、不重启服务。",
 ""
 ];
@@ -381,6 +397,8 @@ function planVerifyPrompt(planPath, focus, overlay = "") {
 const focusText = withoutSnapshotText(focus).trim();
 const overlayText = withoutSnapshotText(overlay).trim();
 const lines = [
+"You are a senior technical plan reviewer.",
+"",
 "只读计划核验会话：只审查计划文档本身；不实施、不改文件、不提交、不装依赖、不重启服务。",
 "",
 `计划文档：${planPath}`,
@@ -402,6 +420,35 @@ lines.push(
 );
 if (overlayText !== "") lines.push("", "附加要求：", overlayText);
 return lines.join("\n");
+}
+
+/**
+ * 问题处理提示词：当前会话直接查因、核对信息并处理小问题。
+ *
+ * 只读与授权只是提示词约束，不是硬拦；`V：` 标题的只读硬拦由启动前检查规避。
+ */
+function checkPrompt(task, overlay = "") {
+const lines = [
+"You are a senior software troubleshooting expert.",
+"",
+"1. 先查证再下结论：核对收到的信息与现象（日志、报错、复现步骤、改动 diff），信息不足就先提问，不要凭空猜测。",
+"2. 已定位的小问题直接修并说明；需要方案讨论或跨模块改造时交回 /D。",
+"3. 生产/共享环境只读诊断：重启、删改数据、改权限、装依赖、发布都必须先获得明确授权。",
+"4. 不写 PLAN-*.md；需要先出方案时交回 /D；修复后按 AGENTS.md 验证并说明验证方式。"
+];
+if (overlay !== "") lines.push("", "附加要求：", overlay);
+lines.push(
+"",
+"任务：",
+String(task).trim() || "（我还没说清问题，请先通过提问帮我确认现象、环境与范围。）"
+);
+return lines.join("\n");
+}
+
+/** `C：<摘要>`，空参数用 `C：查问题`。 */
+function checkTitle(task) {
+const text = String(task).trim();
+return `C：${text === "" ? "查问题" : summarizeTitle(text)}`;
 }
 
 function apply(ctx) {
@@ -621,7 +668,7 @@ text: hadTodo ? "已清除 TODO，不归档会话" : "当前没有 TODO 标记�
 async function submit(key, session, args, attachments = []) {
 // 文件回执只在接收它的会话内有效，新建会话拿不到，因此 /G、/V、/VP 只收图片。
 const images = attachments.filter((attachment) => attachment?.type === "image");
-if (key !== "D" && images.length !== attachments.length) {
+if (key !== "D" && key !== "C" && images.length !== attachments.length) {
 return { kind: "error", text: fileAttachmentNotice(key) };
 }
 try {
@@ -638,6 +685,7 @@ attachments
 );
 return { kind: "success" };
 }
+if (key === "C") return await startCheck(session.sessionId, args, attachments);
 if (key === "V") return await startVerification(session.sessionId, args, images);
 if (key === "VP") return await startPlanVerification(session.sessionId, args, images);
 return await startExecution(session.sessionId, args, images);
@@ -648,7 +696,7 @@ return errorOutcome(error);
 
 /** /G、/V、/VP 拒绝文件附件时的统一说明。 */
 function fileAttachmentNotice(key) {
-return `/${key} 暂不支持文件附件（文件回执只对当前会话有效），请把文件路径写入任务或计划，或改用 /D 在当前会话带文件；图片附件可以直接带。`;
+return `/${key} 暂不支持文件附件（文件回执只对当前会话有效），请把文件路径写入任务或计划，或改用 /D、/C 在当前会话带文件；图片附件可以直接带。`;
 }
 
 /** 讨论会话统一加 `D: ` 前缀，便于和 `/G` 的 G：会话区分。 */
@@ -808,6 +856,40 @@ uiWorkspace.openSession(newSessionId);
 return { kind: "success" };
 }
 
+/**
+ * 问题处理：只在当前会话改名并发提示词，不新建会话、不打开别的会话。
+ *
+ * `V：`（含 `TODO：V：`、`TODO: V：`）是 context-guard 的只读核验态；
+ * 先读当前标题，命中就返回错误且不改标题，避免用 /C 改名绕过只读硬拦。
+ */
+async function startCheck(sessionId, rawArgs, attachments = []) {
+const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
+const text = String(rawArgs).trim();
+const blockedTitle = await sessions.using(sessionId, { source: "workflowShortcuts" }, async (reference) => {
+const bindingSession = reference.binding.session;
+const current = String(bindingSession.projections.faceOf("title").getSnapshot() ?? "");
+if (/^(?:TODO[：:]\s*)?V[：:]/u.test(current)) return current;
+const config = workflowConfig();
+const file = resolveOverlayFile(config.checkPromptFile, DEFAULT_CHECK_PROMPT_FILE);
+const overlay = await promptOverlay(sessionId, cwd, file);
+const renamed = await bindingSession.rename(checkTitle(text));
+if (!renamed.ok) throw remoteFailure("session.rename", renamed);
+const prompted = await bindingSession.prompt(
+promptParts(checkPrompt(text, overlay), attachments),
+"queue"
+);
+if (!prompted.ok) throw remoteFailure("session.prompt", prompted);
+return undefined;
+});
+if (blockedTitle !== undefined) {
+return {
+kind: "error",
+text: `当前会话是只读核验会话（${blockedTitle}），不能执行 /C；请在普通会话处理问题。`
+};
+}
+return { kind: "success" };
+}
+
 async function ensureWorkspace(cwd) {
 const target = normalizePath(cwd);
 const existing = workspaces.list
@@ -819,7 +901,7 @@ return workspaces.create({ path: cwd });
 
 function keyOfToken(token) {
 const raw = token.startsWith("/") ? token.slice(1) : token;
-return raw === "D" || raw === "G" || raw === "V" || raw === "VP" ? raw : undefined;
+return raw === "D" || raw === "G" || raw === "C" || raw === "V" || raw === "VP" ? raw : undefined;
 }
 
 const source = {

@@ -1,7 +1,7 @@
 /**
  * DSH 工作流快捷命令（Host 侧）。
  *
- * /D、/G、/V、/VP 的输入识别与动作都在 Client 侧完成。Host 声明可选配置，
+ * /D、/G、/C、/V、/VP 的输入识别与动作都在 Client 侧完成。Host 声明可选配置，
  * 把清洗后的规范文档路径与提示词附加要求文件路径注入浏览器全局；
  * 同时向模型注入 TODO 用户动作标记约束，监听 session/event
  * 在命中标记时给会话标题加 TODO 前缀（/ok 在 Client 侧清除），
@@ -27,6 +27,7 @@ export const CONFIG_GLOBAL = '__DSH_WORKFLOW_SHORTCUTS_CONFIG__'
 export const DEFAULT_DISCUSSION_PROMPT_FILE = '.dsh/workflow-shortcuts/discussion.md'
 export const DEFAULT_EXECUTION_PROMPT_FILE = '.dsh/workflow-shortcuts/execution.md'
 export const DEFAULT_VERIFY_PROMPT_FILE = '.dsh/workflow-shortcuts/verify.md'
+export const DEFAULT_CHECK_PROMPT_FILE = '.dsh/workflow-shortcuts/check.md'
 
 export const Config = z.object({
   workflowDoc: z.string().default('').description('工作流/授权规范文档路径；留空表示不指定。'),
@@ -44,6 +45,10 @@ export const Config = z.object({
     .string()
     .default(DEFAULT_VERIFY_PROMPT_FILE)
     .description('/V 提示词的附加要求文件；相对路径基于会话工作目录，none 表示关闭。'),
+  checkPromptFile: z
+    .string()
+    .default(DEFAULT_CHECK_PROMPT_FILE)
+    .description('/C 提示词的附加要求文件；相对路径基于会话工作目录，none 表示关闭。'),
 })
 
 /** 只保留非空字符串，并去掉首尾空白；缺失或非法值按未配置处理。 */
@@ -51,7 +56,7 @@ function cleanDocPath(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-/** 清洗 Host 配置；返回的对象只含六个公开字段。 */
+/** 清洗 Host 配置；返回的对象只含七个公开字段。 */
 export function normalizeConfig(config) {
   return {
     workflowDoc: cleanDocPath(config?.workflowDoc),
@@ -60,6 +65,7 @@ export function normalizeConfig(config) {
     discussionPromptFile: cleanDocPath(config?.discussionPromptFile),
     executionPromptFile: cleanDocPath(config?.executionPromptFile),
     verifyPromptFile: cleanDocPath(config?.verifyPromptFile),
+    checkPromptFile: cleanDocPath(config?.checkPromptFile),
   }
 }
 

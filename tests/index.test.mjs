@@ -50,6 +50,7 @@ registerHooks({
 const {
   Config,
   CONFIG_GLOBAL,
+  DEFAULT_CHECK_PROMPT_FILE,
   DEFAULT_DISCUSSION_PROMPT_FILE,
   DEFAULT_EXECUTION_PROMPT_FILE,
   DEFAULT_VERIFY_PROMPT_FILE,
@@ -68,18 +69,20 @@ test('Host：Config 默认值', () => {
     planTemplate: '',
     discussionPromptFile: DEFAULT_DISCUSSION_PROMPT_FILE,
     executionPromptFile: DEFAULT_EXECUTION_PROMPT_FILE,
-    verifyPromptFile: DEFAULT_VERIFY_PROMPT_FILE
+    verifyPromptFile: DEFAULT_VERIFY_PROMPT_FILE,
+    checkPromptFile: DEFAULT_CHECK_PROMPT_FILE
   })
 })
 
-test('Host：normalizeConfig 只保留清洗后的六个字符串字段', () => {
+test('Host：normalizeConfig 只保留清洗后的七个字符串字段', () => {
   assert.deepEqual(normalizeConfig(), {
     workflowDoc: '',
     planDoc: '',
     planTemplate: '',
     discussionPromptFile: '',
     executionPromptFile: '',
-    verifyPromptFile: ''
+    verifyPromptFile: '',
+    checkPromptFile: ''
   })
   assert.deepEqual(
     normalizeConfig({
@@ -89,6 +92,7 @@ test('Host：normalizeConfig 只保留清洗后的六个字符串字段', () => 
       discussionPromptFile: ' prompts/d.md ',
       executionPromptFile: 'none',
       verifyPromptFile: ' prompts/v.md ',
+      checkPromptFile: ' prompts/c.md ',
       extra: 'ignored'
     }),
     {
@@ -97,7 +101,8 @@ test('Host：normalizeConfig 只保留清洗后的六个字符串字段', () => 
       planTemplate: '',
       discussionPromptFile: 'prompts/d.md',
       executionPromptFile: 'none',
-      verifyPromptFile: 'prompts/v.md'
+      verifyPromptFile: 'prompts/v.md',
+      checkPromptFile: 'prompts/c.md'
     }
   )
 })
@@ -117,6 +122,7 @@ test('Host：webserver/index-inject 注入清洗后的全局配置', () => {
     discussionPromptFile: ' prompts/discussion.md ',
     executionPromptFile: ' /tmp/execution.md ',
     verifyPromptFile: ' /tmp/verify.md ',
+    checkPromptFile: ' /tmp/check.md ',
     extra: 'ignored'
   })
   assert.equal(typeof listener, 'function')
@@ -132,12 +138,13 @@ test('Host：webserver/index-inject 注入清洗后的全局配置', () => {
       planTemplate: '',
       discussionPromptFile: 'prompts/discussion.md',
       executionPromptFile: '/tmp/execution.md',
-      verifyPromptFile: '/tmp/verify.md'
+      verifyPromptFile: '/tmp/verify.md',
+      checkPromptFile: '/tmp/check.md'
     }
   }])
 })
 
-test('Host：未配置时注入空配置，仍固定六个字段', () => {
+test('Host：未配置时注入空配置，仍固定七个字段', () => {
   let listener
   apply({ on(_event, handler) { listener = handler } })
   const table = []
@@ -151,7 +158,8 @@ test('Host：未配置时注入空配置，仍固定六个字段', () => {
       planTemplate: '',
       discussionPromptFile: '',
       executionPromptFile: '',
-      verifyPromptFile: ''
+      verifyPromptFile: '',
+      checkPromptFile: ''
     }
   })
 })
@@ -361,7 +369,7 @@ test('Host：主会话 delegationDepth 0 可触发，subagent 不触发', async 
   assert.deepEqual(origin.calls, [])
 })
 
-test('Host：D/G 命令会话的 TODO 前缀保留命令标识', async () => {
+test('Host：D/G/C 命令会话的 TODO 前缀保留命令标识', async () => {
   const d = todoFixture({ id: 'd-session', title: 'D: 实现登录' })
   assert.equal(await onAssistantMessage(d.ctx, {}, d.session, todoMessage(`请确认\n${USER_ACTION_MARKER}`)), true)
   assert.deepEqual(d.calls, ['TODO D: 实现登录'])
@@ -369,6 +377,10 @@ test('Host：D/G 命令会话的 TODO 前缀保留命令标识', async () => {
   const g = todoFixture({ id: 'g-session', title: 'G：修复登录' })
   assert.equal(await onAssistantMessage(g.ctx, {}, g.session, todoMessage(`请确认\n${USER_ACTION_MARKER}`)), true)
   assert.deepEqual(g.calls, ['TODO G：修复登录'])
+
+  const c = todoFixture({ id: 'c-session', title: 'C：线上 502' })
+  assert.equal(await onAssistantMessage(c.ctx, {}, c.session, todoMessage(`请确认\n${USER_ACTION_MARKER}`)), true)
+  assert.deepEqual(c.calls, ['TODO C：线上 502'])
 })
 
 test('Host：模型漏输出标记但收尾含实质「需要你执行」小节时兜底改名', async () => {

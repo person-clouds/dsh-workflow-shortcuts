@@ -199,7 +199,7 @@ test('/D：claim 后发送讨论提示词，未配置规范时不输出具体路
   const { source, calls } = createHarness()
   assert.equal(source.order, -1000)
   const rows = await source.candidates({ sessionId: 's1' }, { query: '', signal: { aborted: false } })
-  assert.equal(JSON.stringify(rows.map((row) => row.name)), JSON.stringify(['D', 'G', 'V', 'VP']))
+  assert.equal(JSON.stringify(rows.map((row) => row.name)), JSON.stringify(['D', 'G', 'C', 'V', 'VP']))
   assert.equal(typeof rows[0].icon, 'function')
   assert.equal(typeof rows[1].icon, 'function')
   assert.equal(typeof rows[2].icon, 'function')
@@ -214,6 +214,10 @@ test('/D：claim 后发送讨论提示词，未配置规范时不输出具体路
   assert.equal(calls.prompts.length, 1)
   assert.equal(calls.prompts[0].id, 's1')
   const prompt = calls.prompts[0].content[0].text
+  // 首行是角色定位，第二行空行，随后是分流行与四条编号要点。
+  assert.equal(prompt.split('\n')[0], 'You are a senior software architect.')
+  assert.equal(prompt.split('\n')[1], '')
+  assert.match(prompt, /^说明：本命令只做内容探索与计划；bugfix、线上异常处理请改用 \/C。$/m)
   // 四条要点：探索类先讨论不动手、按当前规范写计划、bugfix 直接做并维护文档、交付前自检。
   assert.match(prompt, /^1\. 读 PROJECT_INDEX，内容探索（并非既定流程的bugfix），讨论时不要直接干$/m)
   assert.match(prompt, /^2\. 确认后按当前工作区\/仓库既有规范写 PLAN-\*\.md。$/m)
@@ -318,6 +322,8 @@ test('/G：显式相对路径并新建实施会话', async () => {
   assert.equal(calls.renames[0].title, 'G：PLAN-foo.md')
   assert.equal(calls.prompts[0].id, 's2')
   const prompt = calls.prompts[0].content[0].text
+  assert.equal(prompt.split('\n')[0], 'You are a senior software development expert.')
+  assert.equal(prompt.split('\n')[1], '')
   assert.match(prompt, /^1\. 工作区：\/repo；先读工作区 AGENTS\.md/m)
   assert.match(prompt, /计划文档：\n\/repo\/task\/foo\/PLAN-foo\.md/)
   assert.match(prompt, /^2\. 直接按计划执行；路径已验证。$/m)
@@ -331,6 +337,7 @@ test('/G：输入文字时新建任务会话', async () => {
   const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('修复登录失败问题', {}, [])
   assert.equal(result.kind, 'success')
   assert.equal(calls.renames[0].title, 'G：修复登录失败问题')
+  assert.equal(calls.prompts[0].content[0].text.split('\n')[0], 'You are a senior software development expert.')
   assert.match(calls.prompts[0].content[0].text, /任务：/)
   assert.match(calls.prompts[0].content[0].text, /修复登录失败问题/)
   assert.doesNotMatch(calls.prompts[0].content[0].text, /计划文档：/)
@@ -638,16 +645,21 @@ test('/ok：只匹配 /ok，不影响 /D、/G', async () => {
   assert.equal(JSON.stringify(rows.map((row) => row.label)), JSON.stringify(['/ok']))
 })
 
-test('/ok：TODO D: 前缀同样可清', async () => {
-  const { okSource, calls } = createHarness({ title: 'TODO D: 写计划' })
-  const claim = (await okSource.matchEnter({ sessionId: 's1' }, '/ok', undefined, { attachments: 0 })).claim
-  await claim.submit()
-  assert.equal(calls.renames[0].title, 'D: 写计划')
+test('/ok：TODO D:、TODO C：前缀同样可清', async () => {
+  const d = createHarness({ title: 'TODO D: 写计划' })
+  const dClaim = (await d.okSource.matchEnter({ sessionId: 's1' }, '/ok', undefined, { attachments: 0 })).claim
+  await dClaim.submit()
+  assert.equal(d.calls.renames[0].title, 'D: 写计划')
+
+  const c = createHarness({ title: 'TODO C：查问题' })
+  const cClaim = (await c.okSource.matchEnter({ sessionId: 's1' }, '/ok', undefined, { attachments: 0 })).claim
+  await cClaim.submit()
+  assert.equal(c.calls.renames[0].title, 'C：查问题')
 })
 
 test('/V：新建只读核验会话，标题带 V：前缀并注入快照与默认 1 轮', async () => {
   const { source, calls } = createHarness()
-  assert.equal(JSON.stringify(source.lexicon({ sessionId: 's1' })), JSON.stringify(['D', 'G', 'V', 'VP']))
+  assert.equal(JSON.stringify(source.lexicon({ sessionId: 's1' })), JSON.stringify(['D', 'G', 'C', 'V', 'VP']))
   const outcome = source.matchEnter({ sessionId: 's1' }, '/V 核验 guard 改动', undefined, { attachments: 0 })
   assert.equal(outcome.claim.token, '/V ')
   assert.equal(outcome.claim.hint, '[改动说明 | 快照 sha]')
@@ -658,6 +670,8 @@ test('/V：新建只读核验会话，标题带 V：前缀并注入快照与默�
   assert.equal(calls.renames[0].title, 'V：核验 guard 改动')
   assert.deepEqual(calls.opened, ['s2'])
   const prompt = calls.prompts[0].content[0].text
+  assert.equal(prompt.split('\n')[0], 'You are a senior software testing expert.')
+  assert.equal(prompt.split('\n')[1], '')
   assert.match(prompt, /只读核验会话/)
   assert.match(prompt, /^快照：abc1234$/m)
   assert.match(prompt, /默认 1 轮/)
@@ -708,6 +722,8 @@ test('/VP：显式计划路径，标题为 V：计划：，提示词不带快照
   assert.equal(calls.renames[0].title, 'V：计划：发布对齐')
   assert.deepEqual(calls.opened, ['s2'])
   const prompt = calls.prompts[0].content[0].text
+  assert.equal(prompt.split('\n')[0], 'You are a senior technical plan reviewer.')
+  assert.equal(prompt.split('\n')[1], '')
   assert.match(prompt, /只读计划核验会话/)
   assert.match(prompt, /^计划文档：\/repo\/task\/a\/PLAN-a\.md$/m)
   assert.doesNotMatch(prompt, /\\n/)
@@ -792,7 +808,7 @@ test('/VP：不是计划路径时报错，不创建会话', async () => {
 
 test('附件：/D、/G、/V、/VP 声明 attachments，/ok 不声明', async () => {
   const { source, okSource } = createHarness()
-  for (const token of ['/D 任务', '/G 任务', '/V 核验', '/VP 计划']) {
+  for (const token of ['/D 任务', '/G 任务', '/C 问题', '/V 核验', '/VP 计划']) {
     const outcome = source.matchEnter({ sessionId: 's1' }, token, undefined, { attachments: 2 })
     assert.equal(outcome.claim.attachments, true, token)
   }
@@ -846,7 +862,7 @@ test('/G：文件附件只报错，不创建会话也不发提示词', async () 
   const result = await source.matchSpace({ sessionId: 's1' }, '/G').claim.submit('修复登录', {}, [IMAGE, FILE])
   assert.equal(result.kind, 'error')
   assert.match(result.text, /^\/G 暂不支持文件附件（文件回执只对当前会话有效）/)
-  assert.match(result.text, /改用 \/D 在当前会话带文件；图片附件可以直接带。/)
+  assert.match(result.text, /改用 \/D、\/C 在当前会话带文件；图片附件可以直接带。/)
   assert.equal(calls.creates.length, 0)
   assert.equal(calls.prompts.length, 0)
   assert.equal(calls.renames.length, 0)
@@ -894,4 +910,87 @@ test('/VP：文件附件只报错，不创建会话', async () => {
   assert.match(result.text, /^\/VP 暂不支持文件附件/)
   assert.equal(calls.creates.length, 0)
   assert.equal(calls.prompts.length, 0)
+})
+
+
+test('/C：当前会话改名并发送问题处理提示词，不新建会话', async () => {
+  const { source, calls } = createHarness()
+  const outcome = await source.matchSpace({ sessionId: 's1' }, '/C')
+  const result = await outcome.claim.submit('线上 502 报错，帮我查一下', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.creates.length, 0)
+  assert.equal(JSON.stringify(calls.opened), JSON.stringify([]))
+  assert.equal(calls.renames.length, 1)
+  assert.equal(calls.renames[0].id, 's1')
+  assert.equal(calls.renames[0].title, 'C：线上 502 报错，帮我查一下')
+  assert.equal(calls.prompts[0].id, 's1')
+  const prompt = calls.prompts[0].content[0].text
+  assert.equal(prompt.split('\n')[0], 'You are a senior software troubleshooting expert.')
+  assert.equal(prompt.split('\n')[1], '')
+  assert.equal(prompt.match(/^\d+\. /gm)?.length, 4)
+  assert.match(prompt, /先查证再下结论/)
+  assert.match(prompt, /生产\/共享环境只读诊断/)
+  assert.match(prompt, /不写 PLAN-\*\.md/)
+  assert.match(prompt, /任务：\n线上 502 报错，帮我查一下$/)
+})
+
+test('/C：空参数标题为 C：查问题，并先提问补全信息', async () => {
+  const { source, calls } = createHarness()
+  const result = await source.matchSpace({ sessionId: 's1' }, '/C').claim.submit('', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.renames[0].title, 'C：查问题')
+  assert.match(calls.prompts[0].content[0].text, /请先通过提问帮我确认现象、环境与范围/)
+})
+
+test('/C：转发图片与文件附件，文本在最后', async () => {
+  const { source, calls } = createHarness()
+  const result = await source.matchSpace({ sessionId: 's1' }, '/C')
+    .claim.submit('看下这个报错', {}, [IMAGE, FILE])
+  assert.equal(result.kind, 'success')
+  const content = calls.prompts[0].content
+  assert.equal(content.length, 3)
+  assert.equal(JSON.stringify(content[0]), JSON.stringify(IMAGE))
+  assert.equal(JSON.stringify(content[1]), JSON.stringify(FILE))
+  assert.match(content[2].text, /任务：\n看下这个报错$/)
+})
+
+test('/C：附加要求 check.md 在任务之前，none 关闭且不读文件', async () => {
+  const overlay = '先确认影响面，再动数据。'
+  const withOverlay = createHarness({
+    files: { '/repo/.dsh/workflow-shortcuts/check.md': overlay }
+  })
+  await withOverlay.source.matchSpace({ sessionId: 's1' }, '/C').claim.submit('排查超时', {}, [])
+  const prompt = withOverlay.calls.prompts[0].content[0].text
+  assert.equal(withOverlay.calls.reads[0].path, '/repo/.dsh/workflow-shortcuts/check.md')
+  assert.match(prompt, /^附加要求：$/m)
+  assert.match(prompt, /先确认影响面，再动数据。/)
+  assert.ok(prompt.indexOf('附加要求：') < prompt.indexOf('任务：'))
+
+  const disabled = createHarness({
+    window: { __DSH_WORKFLOW_SHORTCUTS_CONFIG__: { checkPromptFile: 'off' } },
+    files: { '/repo/.dsh/workflow-shortcuts/check.md': '不应出现' }
+  })
+  await disabled.source.matchSpace({ sessionId: 's1' }, '/C').claim.submit('排查超时', {}, [])
+  assert.equal(disabled.calls.reads.length, 0)
+  assert.doesNotMatch(disabled.calls.prompts[0].content[0].text, /不应出现|附加要求：/)
+})
+
+test('/C：V：只读核验会话下拒绝执行且不改标题、不发提示词', async () => {
+  for (const title of ['V：核验改动', 'TODO：V：核验改动', 'TODO: V：核验改动']) {
+    const { source, calls } = createHarness({ title })
+    const result = await source.matchSpace({ sessionId: 's1' }, '/C').claim.submit('查问题', {}, [])
+    assert.equal(result.kind, 'error')
+    assert.match(result.text, /只读核验会话/)
+    assert.equal(calls.renames.length, 0)
+    assert.equal(calls.prompts.length, 0)
+  }
+})
+
+test('/C：普通会话与 D：、G： 标题不受只读检查影响', async () => {
+  for (const title of ['D: 讨论', 'G：执行', 'TODO C：旧问题']) {
+    const { source, calls } = createHarness({ title })
+    const result = await source.matchSpace({ sessionId: 's1' }, '/C').claim.submit('继续查', {}, [])
+    assert.equal(result.kind, 'success')
+    assert.equal(calls.renames.length, 1)
+  }
 })
