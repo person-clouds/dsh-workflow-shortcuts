@@ -423,6 +423,35 @@ return lines.join("\n");
 }
 
 /**
+ * 非空会话的核验派单提示词：主 Agent 只开子会话并汇总，核验在子会话内完成。
+ *
+ * 子会话没有 `V：` 标题，context-guard 的只读硬拦不生效，只读只能靠这里的文字约束；
+ * 内层提示词必须原样使用，避免主 Agent 改写后丢掉只读与报告格式要求。
+ */
+function subagentVerificationPrompt(key, inner) {
+const isPlan = key === "VP";
+const role = isPlan
+? "You are a senior technical plan reviewer dispatching a read-only plan-verification subagent."
+: "You are a senior software testing expert dispatching a read-only verification subagent.";
+const description = isPlan ? "V：计划核验" : "V：核验改动";
+return [
+role,
+"",
+"本会话不自行核验：按下面步骤开一个只读核验子会话，并只汇总它的结果。",
+"",
+"1. 调用 `subagent` 工具：`description` 用 `" + description + "`，`prompt` 参数使用下方「子会话提示词」全文，不要改写或删减。",
+"2. 子会话只读：不改代码、不提交、不装依赖、不重启服务，只输出结论与问题清单。",
+"3. 拿到子会话结果后，把「结论」「问题清单」「需要你执行」汇总到本会话展示；然后停下，不继续实施。",
+"4. 若当前 Agent 没有 `subagent` 工具，明确告知无法开子会话，不得自行在主会话核验。",
+"",
+"子会话提示词：",
+"-----",
+String(inner),
+"-----"
+].join("\n");
+}
+
+/**
  * 问题处理提示词：当前会话直接查因、核对信息并处理小问题。
  *
  * 只读与授权只是提示词约束，不是硬拦；`V：` 标题的只读硬拦由启动前检查规避。
@@ -769,14 +798,55 @@ uiWorkspace.openSession(newSessionId);
 return { kind: "success" };
 }
 
+/** `V：`（含 TODO 前缀）是 context-guard 的只读核验态，再发 /V、/VP 会嵌套核验。 */
+function isVerifyTitle(title) {
+return /^(?:TODO[：:]\s*)?V[：:]/u.test(String(title));
+}
+
+/** 标题是 session 的 projection，不在 SessionSnapshot 上。 */
+async function readSessionTitle(sessionId) {
+return await sessions.using(sessionId, { source: "workflowShortcuts" }, async (reference) =>
+String(reference.binding.session.projections.faceOf("title").getSnapshot() ?? "")
+);
+}
+
 /**
- * 计划核验会话：标题仍以 `V：` 开头，复用 guard 的只读与预算；
+ * /V、/VP 的会话分流：空白会话就地改名；非空会话不新建、不改名，由主 Agent 派子会话核验。
+ * 返回 `{ error }` 表示直接结束；否则返回 `{ blank }`。
+ */
+async function verificationTarget(sessionId, key, images) {
+const summary = sessions.list.getSnapshot().byId[sessionId];
+const title = await readSessionTitle(sessionId);
+if (isVerifyTitle(title)) {
+return {
+error: {
+kind: "error",
+text: `当前会话已是只读核验会话（${title}），请勿嵌套核验；可直接在该会话继续。`
+}
+};
+}
+const blank = summary?.blank === true;
+if (!blank && images.length > 0) {
+return {
+error: {
+kind: "error",
+text: `当前会话已有内容，/${key} 不能带附件做子会话核验；请新开空白会话再带图片核验，或去掉附件只做只读核验。`
+}
+};
+}
+return { blank };
+}
+
+/**
+ * 计划核验：空白会话就地改名 `V：计划：…`；非空会话不改名，向主 Agent 发子会话派单提示词。
  * 空参数从最近消息里选计划；提示词只带计划路径与核验重点，不粘贴计划正文或原消息，
  * 也不带可参与去重的 `快照：<sha>` 键，同一计划可反复审。
  */
 async function startPlanVerification(sessionId, rawArgs, images = []) {
 const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
 if (!cwd) throw new Error("无法确定当前会话的工作目录，/VP 已取消。");
+const target = await verificationTarget(sessionId, "VP", images);
+if (target.error !== undefined) return target.error;
 const text = String(rawArgs).trim();
 let request;
 if (text !== "") {
@@ -804,55 +874,46 @@ const planTitle = await readPlanTitle(sessionId, request.planPath);
 const summary = planTitle === undefined || planTitle === "" ? basename(request.planPath) : planTitle;
 const title = `V：计划：${summarizeTitle(summary)}`;
 
-const workspace = await ensureWorkspace(cwd);
 const config = workflowConfig();
 const file = resolveOverlayFile(config.verifyPromptFile, DEFAULT_VERIFY_PROMPT_FILE);
 const overlay = await promptOverlay(sessionId, cwd, file);
+const prompt = planVerifyPrompt(request.planPath, request.instruction, overlay);
 
-const newSessionId = await sessions.create({ workspaceId: workspace.workspaceId });
-
-await sessions.using(newSessionId, { source: "workflowShortcuts" }, async (reference) => {
-const renamed = await reference.binding.session.rename(title);
-if (!renamed.ok) throw remoteFailure("session.rename", renamed);
-const prompted = await reference.binding.session.prompt(
-promptParts(planVerifyPrompt(request.planPath, request.instruction, overlay), images),
-"queue"
-);
-if (!prompted.ok) throw remoteFailure("session.prompt", prompted);
-});
-
-uiWorkspace.openSession(newSessionId);
+if (target.blank) {
+await sendPrompt(sessionId, prompt, title, images);
 return { kind: "success" };
 }
 
-/** 核验会话：标题 `V：…`，context-guard 据此切只读与核验预算。 */
+await sendPrompt(sessionId, subagentVerificationPrompt("VP", prompt), undefined);
+return { kind: "success" };
+}
+
+/**
+ * 核验：空白会话就地改名 `V：…`（context-guard 据此切只读与核验预算）；
+ * 非空会话不改名、不新建，向主 Agent 发子会话派单提示词。
+ */
 async function startVerification(sessionId, rawArgs, images = []) {
 const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd;
 if (!cwd) throw new Error("无法确定当前会话的工作目录，/V 已取消。");
+const target = await verificationTarget(sessionId, "V", images);
+if (target.error !== undefined) return target.error;
 const text = String(rawArgs).trim();
 const snapshotMatch = text.match(/(?:快照|snapshot)[：:]\s*([0-9a-f]{7,40})/i);
 const snapshot = snapshotMatch === null ? "" : snapshotMatch[1];
 const scope = snapshotMatch === null ? text : text.replace(snapshotMatch[0], "").replace(/^[\s,，;；]+/, "").trim();
 const title = `V：${scope === "" ? "核验改动" : summarizeTitle(scope)}`;
 
-const workspace = await ensureWorkspace(cwd);
 const config = workflowConfig();
 const file = resolveOverlayFile(config.verifyPromptFile, DEFAULT_VERIFY_PROMPT_FILE);
 const overlay = await promptOverlay(sessionId, cwd, file);
+const prompt = verifyPrompt(snapshot, scope, overlay);
 
-const newSessionId = await sessions.create({ workspaceId: workspace.workspaceId });
+if (target.blank) {
+await sendPrompt(sessionId, prompt, title, images);
+return { kind: "success" };
+}
 
-await sessions.using(newSessionId, { source: "workflowShortcuts" }, async (reference) => {
-const renamed = await reference.binding.session.rename(title);
-if (!renamed.ok) throw remoteFailure("session.rename", renamed);
-const prompted = await reference.binding.session.prompt(
-promptParts(verifyPrompt(snapshot, scope, overlay), images),
-"queue"
-);
-if (!prompted.ok) throw remoteFailure("session.prompt", prompted);
-});
-
-uiWorkspace.openSession(newSessionId);
+await sendPrompt(sessionId, subagentVerificationPrompt("V", prompt), undefined);
 return { kind: "success" };
 }
 

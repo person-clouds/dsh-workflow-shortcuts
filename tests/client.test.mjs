@@ -87,7 +87,9 @@ function createHarness(options = {}) {
   const entries = options.entries ?? []
   const sessions = {
     subagentAddress: () => undefined,
-    list: { getSnapshot: () => ({ byId: { s1: { cwd: '/repo' } } }) },
+    list: {
+      getSnapshot: () => ({ byId: { s1: { cwd: '/repo', blank: options.blank ?? true } } })
+    },
     async using(id, _options, operation) {
       return operation({
         binding: {
@@ -657,7 +659,7 @@ test('/ok：TODO D:、TODO C：前缀同样可清', async () => {
   assert.equal(c.calls.renames[0].title, 'C：查问题')
 })
 
-test('/V：新建只读核验会话，标题带 V：前缀并注入快照与默认 1 轮', async () => {
+test('/V：空白会话就地改名为 V：，不新建也不打开会话', async () => {
   const { source, calls } = createHarness()
   assert.equal(JSON.stringify(source.lexicon({ sessionId: 's1' })), JSON.stringify(['D', 'G', 'C', 'V', 'VP']))
   const outcome = source.matchEnter({ sessionId: 's1' }, '/V 核验 guard 改动', undefined, { attachments: 0 })
@@ -665,10 +667,12 @@ test('/V：新建只读核验会话，标题带 V：前缀并注入快照与默�
   assert.equal(outcome.claim.hint, '[改动说明 | 快照 sha]')
   const result = await outcome.claim.submit('核验 guard 改动 快照：abc1234', {}, [])
   assert.equal(result.kind, 'success')
-  assert.equal(calls.creates.length, 1)
-  assert.equal(calls.renames[0].id, 's2')
+  assert.equal(calls.creates.length, 0)
+  assert.equal(calls.renames.length, 1)
+  assert.equal(calls.renames[0].id, 's1')
   assert.equal(calls.renames[0].title, 'V：核验 guard 改动')
-  assert.deepEqual(calls.opened, ['s2'])
+  assert.equal(calls.prompts[0].id, 's1')
+  assert.deepEqual(calls.opened, [])
   const prompt = calls.prompts[0].content[0].text
   assert.equal(prompt.split('\n')[0], 'You are a senior software testing expert.')
   assert.equal(prompt.split('\n')[1], '')
@@ -690,7 +694,7 @@ test('/V：空参数使用「核验改动」标题，文件附件直接报错', 
     .claim.submit('看下', {}, [{ type: 'file', receiptId: 'receipt-1' }])
   assert.equal(withAttachment.kind, 'error')
   assert.match(withAttachment.text, /^\/V 暂不支持文件附件/)
-  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.creates.length, 0)
 })
 
 test('/V：配置 verifyPromptFile 时把附加要求拼进提示词', async () => {
@@ -706,7 +710,7 @@ test('/V：配置 verifyPromptFile 时把附加要求拼进提示词', async () 
   assert.match(prompt, /只看 lib\/verify-mode\.js/)
 })
 
-test('/VP：显式计划路径，标题为 V：计划：，提示词不带快照', async () => {
+test('/VP：空白会话就地改名 V：计划：，提示词不带快照', async () => {
   const { source, calls } = createHarness({ planText: '# 发布对齐\n' })
   const outcome = source.matchEnter(
     { sessionId: 's1' },
@@ -718,9 +722,12 @@ test('/VP：显式计划路径，标题为 V：计划：，提示词不带快照
   assert.equal(outcome.claim.hint, '[计划文档路径 | 空=最近消息选择]')
   const result = await outcome.claim.submit('/repo/task/a/PLAN-a.md 重点看回滚 快照：abc1234', {}, [])
   assert.equal(result.kind, 'success')
-  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.creates.length, 0)
+  assert.equal(calls.renames.length, 1)
+  assert.equal(calls.renames[0].id, 's1')
   assert.equal(calls.renames[0].title, 'V：计划：发布对齐')
-  assert.deepEqual(calls.opened, ['s2'])
+  assert.equal(calls.prompts[0].id, 's1')
+  assert.deepEqual(calls.opened, [])
   const prompt = calls.prompts[0].content[0].text
   assert.equal(prompt.split('\n')[0], 'You are a senior technical plan reviewer.')
   assert.equal(prompt.split('\n')[1], '')
@@ -773,7 +780,7 @@ test('/VP 空参数：多个候选弹出核验选择框，选中后使用对应�
   const result = await source.matchSpace({ sessionId: 's1' }, '/VP').claim.submit('', {}, [])
   assert.equal(result.kind, 'success')
   assert.equal(calls.dialogs.length, 1)
-  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.creates.length, 0)
   assert.match(calls.prompts[0].content[0].text, /\/repo\/task\/a\/PLAN-a\.md/)
 })
 
@@ -804,6 +811,79 @@ test('/VP：不是计划路径时报错，不创建会话', async () => {
   assert.equal(result.kind, 'error')
   assert.match(result.text, /未找到 \.md 计划文档路径/)
   assert.equal(calls.creates.length, 0)
+})
+
+test('/V：非空会话不改名、不新建，只发子会话派单提示词', async () => {
+  const { source, calls } = createHarness({ blank: false })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/V')
+    .claim.submit('核验 guard 改动 快照：abc1234', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.creates.length, 0)
+  assert.equal(calls.renames.length, 0)
+  assert.deepEqual(calls.opened, [])
+  assert.equal(calls.prompts.length, 1)
+  assert.equal(calls.prompts[0].id, 's1')
+  const prompt = calls.prompts[0].content[0].text
+  assert.equal(
+    prompt.split('\n')[0],
+    'You are a senior software testing expert dispatching a read-only verification subagent.'
+  )
+  assert.match(prompt, /`subagent` 工具/)
+  assert.match(prompt, /`V：核验改动`/)
+  assert.match(prompt, /子会话提示词：/)
+  assert.match(prompt, /^快照：abc1234$/m)
+  assert.match(prompt, /只读核验会话/)
+  assert.match(prompt, /不得自行在主会话核验/)
+})
+
+test('/VP：非空会话不改名、不新建，只发计划核验子会话派单提示词', async () => {
+  const { source, calls } = createHarness({ blank: false, planText: '# 发布对齐\n' })
+  const result = await source.matchSpace({ sessionId: 's1' }, '/VP')
+    .claim.submit('/repo/task/a/PLAN-a.md 重点看回滚', {}, [])
+  assert.equal(result.kind, 'success')
+  assert.equal(calls.creates.length, 0)
+  assert.equal(calls.renames.length, 0)
+  assert.deepEqual(calls.opened, [])
+  assert.equal(calls.prompts.length, 1)
+  const prompt = calls.prompts[0].content[0].text
+  assert.equal(
+    prompt.split('\n')[0],
+    'You are a senior technical plan reviewer dispatching a read-only plan-verification subagent.'
+  )
+  assert.match(prompt, /`V：计划核验`/)
+  assert.match(prompt, /^计划文档：\/repo\/task\/a\/PLAN-a\.md$/m)
+  assert.match(prompt, /只读计划核验会话/)
+  assert.match(prompt, /plan-verify/)
+  assert.doesNotMatch(prompt, /快照：/)
+})
+
+test('/V、/VP：已带 V： 标题时拒绝嵌套核验，不改名也不发提示词', async () => {
+  for (const [key, title] of [
+    ['V', 'V：核验改动'],
+    ['V', 'TODO：V：核验改动'],
+    ['VP', 'V：计划：发布对齐']
+  ]) {
+    const { source, calls } = createHarness({ blank: false, title })
+    const result = await source.matchSpace({ sessionId: 's1' }, `/${key}`).claim.submit('', {}, [])
+    assert.equal(result.kind, 'error')
+    assert.match(result.text, /只读核验会话/)
+    assert.equal(calls.prompts.length, 0)
+    assert.equal(calls.renames.length, 0)
+    assert.equal(calls.creates.length, 0)
+  }
+})
+
+test('/V、/VP：非空会话带图片时报错，提示新开空白会话', async () => {
+  for (const key of ['V', 'VP']) {
+    const { source, calls } = createHarness({ blank: false, planText: '# 发布对齐\n' })
+    const result = await source.matchSpace({ sessionId: 's1' }, `/${key}`).claim.submit('核验', {}, [IMAGE])
+    assert.equal(result.kind, 'error')
+    assert.match(result.text, /已有内容/)
+    assert.match(result.text, /请新开空白会话再带图片核验/)
+    assert.equal(calls.prompts.length, 0)
+    assert.equal(calls.renames.length, 0)
+    assert.equal(calls.creates.length, 0)
+  }
 })
 
 test('附件：/D、/G、/V、/VP 声明 attachments，/ok 不声明', async () => {
@@ -872,7 +952,8 @@ test('/V：图片附件随核验提示词发送', async () => {
   const { source, calls } = createHarness()
   const result = await source.matchSpace({ sessionId: 's1' }, '/V').claim.submit('核验改动', {}, [IMAGE])
   assert.equal(result.kind, 'success')
-  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.creates.length, 0)
+  assert.equal(calls.renames[0].id, 's1')
   assert.equal(calls.renames[0].title, 'V：核验改动')
   const content = calls.prompts[0].content
   assert.equal(content.length, 2)
@@ -894,7 +975,8 @@ test('/VP：图片附件随计划核验提示词发送', async () => {
   const result = await source.matchSpace({ sessionId: 's1' }, '/VP')
     .claim.submit('/repo/task/a/PLAN-a.md', {}, [IMAGE])
   assert.equal(result.kind, 'success')
-  assert.equal(calls.creates.length, 1)
+  assert.equal(calls.creates.length, 0)
+  assert.equal(calls.renames[0].id, 's1')
   assert.equal(calls.renames[0].title, 'V：计划：发布对齐')
   const content = calls.prompts[0].content
   assert.equal(content.length, 2)
