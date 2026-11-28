@@ -30,10 +30,10 @@ Restart `dsh web` or refresh the page, then use them in the input box:
 
 ```text
 /D clarify the requirement first
-/G /home/zh/www/doc/plans/PLAN-foo.md
+/G /home/zh/www/personalCloud/plans/doc/PLAN-foo.md
 /C investigate the 502 on production
 /V verify guard changes 快照：abc1234
-/VP /home/zh/www/doc/plans/PLAN-foo.md
+/VP /home/zh/www/personalCloud/plans/doc/PLAN-foo.md
 /ok
 ```
 

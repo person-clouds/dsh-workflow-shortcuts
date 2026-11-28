@@ -31,10 +31,10 @@ dsh plugin --profile web add dsh-workflow-shortcuts
 
 ```text
 /D 把需求先讨论清楚
-/G /home/zh/www/doc/plans/PLAN-foo.md
+/G /home/zh/www/personalCloud/plans/doc/PLAN-foo.md
 /C 线上 502，帮我查一下
 /V 核验 guard 改动 快照：abc1234
-/VP /home/zh/www/doc/plans/PLAN-foo.md
+/VP /home/zh/www/personalCloud/plans/doc/PLAN-foo.md
 /ok
 ```
 
